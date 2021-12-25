@@ -64,7 +64,11 @@ iframe {
 	width: 1.4em;
 	vertical-align: middle;
 	border-radius: 100%;
-	margin: 20px;
+	margin-right: 20px;
+}
+
+.header span {
+	vertical-align: middle;
 }
 
 .content {
@@ -92,7 +96,7 @@ p {
 }
 
 .code {
-	font-family: "consolas";
+	font-family: "consolas", monospace;
 	border: solid;
 	border-width: 1px;
 	border-color: #B0A8A0;
@@ -102,12 +106,12 @@ p {
 }
 
 .inline-code {
-	font-family: "consolas";
+	font-family: "consolas", monospace;
 	border: solid;
 	border-width: 1px;
 	border-color: #B0A8A0;
 	background-color: #ECE8E6;
-	padding: 0px 10px;
+	padding: 0px 8px;
 	border-radius: 5px;
 	white-space: nowrap;
 }
