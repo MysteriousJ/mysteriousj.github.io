@@ -119,8 +119,9 @@ p {
 .footer {
 	font-size: 0.8em;
 	text-align: center;
-	padding-top: 10pt;
-	padding-bottom: 30px;
+	padding-top: 0pt;
+	padding-bottom: 20px;
+	line-height: 3.5;
 }
 
 .footer a {

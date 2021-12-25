@@ -1,8 +1,9 @@
 <html>
 <head>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Jacob Bell's Blog</title>
+	<title>Jacob Bell's Blog—Wind Effects in Oasis in Curses</title>
 	<link rel="stylesheet" type="text/css" href="style.css">
+	<link rel="shortcut icon" href="favicon.png">
 </head>
 <body>
 	<div class="content">
@@ -21,9 +22,9 @@
 				</div>
 			</div>
 			<h2>Research</h2>
-			<p>While information on <i>applications</i> of wind is readily available, there's surprisingly few people who care about the movement of wind itself. My college physics textbook only mentions wind to talk about wind resistence on a moving object, most measurements of wind I could find online where taken for meteorological records and have hour- or day-resolution, and there's no end to the websites that want to exmplain how turbines work. I would have loved a table of second-by-second measurements of two aeonometers 100 meters apart in the direction of wind, but I wasn't able to find anything like that on google searches. I even found out that no one had developed a Newtonian model of why sailboats work <a href="https://ej-physics.org/index.php/ejphysics/article/view/18">until 2020</a>.<p>
+			<p>While information on <i>applications</i> of wind is readily available, there's surprisingly few people who care about the movement of wind itself. My college physics textbook only mentions wind to talk about wind resistance on a moving object, most measurements of wind I could find online were taken for meteorological records and have hour- or day-resolution, and there's no end to the websites that want to explain how turbines work. I would have loved a table of second-by-second measurements of two anenometers 100 meters apart in the direction of wind, but I wasn't able to find anything like that on google searches. I even found out that no one had developed a Newtonian model of why sailboats work <a href="https://ej-physics.org/index.php/ejphysics/article/view/18">until 2020</a>.<p>
 			<p>I decided to model my wind gusts based only on visual observations. I went over to nearby foothills on a somewhat windy day and spent a couple hours recording video of wind moving through grasses, bushes, and trees. I also found a few <a href="https://www.youtube.com/watch?v=yEn8_X7Ei3A">good youtube videos</a> to reference gusts in large fields.</p>
-			<p>I was researching a little bit at a time for around a month while thinking about how I could implement wind in my game. The most important thing to me was that gusts move from one side of the screen to the other over time, rather than all the plants suddenly moving at once. I could do this with a function parameterized by time and the object's position in the world, and evaluate it for each object. The function would need to be randomized while being easy to artistically tweek.</p>
+			<p>I was researching a little bit at a time for around a month while thinking about how I could implement wind in my game. The most important thing to me was that gusts move from one side of the screen to the other over time, rather than all the plants suddenly moving at once. I could do this with a function parameterized by time and the object's position in the world, and evaluate it for each object. The function would need to be randomized while being easy to artistically tweak.</p>
 			<ul>
 				<li>Somehow generate a randomized sine-wave function</li>
 				<li>Graph wind patterns by hand as a Catmull-Rom spline. When a graph is finished playing, choose another one from a set at random.</li>
@@ -33,7 +34,7 @@
 			<p>The last one was the simple and flexible solution I was looking for, and I started on implementing wind as soon as I thought of it.</p>
 
 			<h2>Animation</h2>
-			<p>I came across a <a href="https://www.hindawi.com/journals/ijcgt/2013/674848/">nice paper on phisics-based effects of wind on game objects</a>, but my engine has nothing close to physics as it is. Defining physics parameters for each part of the plant would also be time consuming. My engine does have skeleton animation, and the assets were already 3D models I made in Blender.</p>
+			<p>I came across a <a href="https://www.hindawi.com/journals/ijcgt/2013/674848/">nice paper on physics-based effects of wind on game objects</a>, but my engine has nothing close to physics as it is. Defining physics parameters for each part of the plant would also be time consuming. My engine does have skeleton animation, and the assets were already 3D models I made in Blender.</p>
 			<div class="video">
 				<div class="videocontainer">
 					<iframe width="560" height="315" src="https://www.youtube.com/embed/BZHFBAxH5Pc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
@@ -51,7 +52,7 @@
 			</div>
 			<p>Wind gusts come suddenly and leave slowly (or at least that's how it feels when you're in one). Skewing a Gaussian function is apparently complicated, so instead I broke it into two halves at the peek, giving it a short head and long tail. You can play with this model here: <a href="https://www.desmos.com/calculator/fdvxfnkntx">https://www.desmos.com/calculator/fdvxfnkntx</a></p>
 			<h2>Subtle Details</h2>
-			<p>Everything in this system looked pretty good except for the motion at low wind speeds. As a gust came in and left, you could see all the parts of the plant be forced into and out of the rest pose, looking very mechanical. Adding a small, constant wind force helped, but it still looked a bit uncanny at slow wind speeds. Fortunatly, I had my close-up videos from the foothill trip to study.</p>
+			<p>Everything in this system looked pretty good except for the motion at low wind speeds. As a gust came in and left, you could see all the parts of the plant be forced into and out of the rest pose, looking very mechanical. Adding a small, constant wind force helped, but it still looked a bit uncanny at slow wind speeds. Fortunately, I had my close-up videos from the foothill trip to study.</p>
 			<div class="video">
 				<div class="videocontainer">
 					<iframe width="560" height="315" src="https://www.youtube.com/embed/l0najHpFgI8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
@@ -59,20 +60,20 @@
 			</div>
 			<p>In each clump of grass, some pieces are bobbing around when there's little wind, while others are completely still. In my wind animations, either all the pieces are moving, or none of them are. To fix this problem, I needed not just one weight for blending in the wind animation, but per-joint weights.</p>
 			<p>When building the animation, each joint gets its weight from this sine-wave function I concocted: <a href="https://www.desmos.com/calculator/a3gyuvmywc">https://www.desmos.com/calculator/a3gyuvmywc</a></p>
-			<p>x is based on the game world's clock and a random offset per joint. Becuase it always uses the same starting seed and plants will not be added or removed during game play, the random series is evaluated the same way every frame, avoiding discontinuities. With this function, joints get more varience in blend weight at lower wind speeds, and they all get the maxixmum blend weight as wind reaches its normalized maximum speed for the game level.</p>
+			<p>x is based on the game world's clock and a random offset per joint. Because it always uses the same starting seed, and plants will not be added or removed during game play, the random series is evaluated the same way every frame, avoiding discontinuities. With this function, joints get more variance in blend weight at lower wind speeds, and they all get the maximum blend weight as wind reaches its normalized maximum speed for the game level.</p>
 			<h2>Radial Wind</h2>
-			<p>I had already animated the character's hair and cloths to blow around when casting curses. Using the wind system, I extended this to plants.</p>
+			<p>I had already animated the characters' hair and clothes to blow around when casting curses. Using the wind system, I extended this to plants.</p>
 			<div class="video">
 				<div class="videocontainer">
 					<iframe width="560" height="315" src="https://www.youtube.com/embed/C6IJu7UymSw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 				</div>
 			</div>
-			<p>These radial gusts are largly the same as linear gusts. Most imporantly, they fall off with distance, and can blow plants to the left as well as to the right. To make them blow left, I just used a negative wind speed, which corresponds with negative joint weights. I may re-evaluate this hack when I make a level where the natural winds blow right to left.</p>
+			<p>These radial gusts are largely the same as linear gusts. Most importantly, they fall off with distance, and can blow plants to the left as well as to the right. To make them blow left, I just used a negative wind speed, which corresponds with negative joint weights. I may re-evaluate this hack when I make a level where the natural winds blow right to left.</p>
 			<h2>Audio</h2>
 			<p>In the video at the top, you can hear the wind sound effects I recorded in a handful of minutes with a $7 lapel mic. I really need to get a better mic and redo these, but it gets the point across. A low-pitch wind sound plays continuously and follows a <span class="inline-code">y = (normalizedWindspeed^2)-0.01</span> volume curve, evaluated at the camera's position.</p>
 			<p>By itself, it's missing that high-pitch whistle you hear at high wind speeds. At first I tried adjusting the playback speed of the sound by the wind speed, but it sounded more like a vacuum cleaner turning on and off. I searched youtube for "ASMR wind" to get some reference videos of what nice-sounding wind sounds like, and really, it's more like the whistling is layered on top of the lower-pitch blowing. So, I added another high-pitch wind sound that kicks in at higher wind speeds with a <span class="inline-code">y = (normalizedWindspeed^8)-0.01</span> volume curve, and playback speed adjusted by <span class="inline-code">normalizedWindspeed+0.2</span>.</p>
 			<h2>Particles</h2>
-			<p>One last touch is sand kicking up and leaves blowing off bushes when the wind speed crosses a threshold. These are created by hand-placed spawner objects. While I'm using engine features I'm calling a "particle system," it's in a very early state and they're really just sprite animations moving accross the screen.</p>
+			<p>One last touch is sand kicking up and leaves blowing off bushes when the wind speed crosses a threshold. These are created by hand-placed spawner objects. While I'm using engine features I'm calling a "particle system," it's in a very early state and they're really just sprite animations moving across the screen.</p>
 		</div>
 	</div>
 </body>
