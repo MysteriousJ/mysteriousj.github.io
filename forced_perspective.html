@@ -1,0 +1,45 @@
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Forced Perspective in Magic Coffee Shop&#8211Jacob Bell's Blog</title>
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<link rel="shortcut icon" href="favicon.png">
+</head>
+<body>
+	<div class="content">
+		<div class="header">
+			<a href="index.html"><img src="avatar.png"><span>Jacob Bell's Blog</span></a>
+		</div>
+		<div class="post">
+			<h1>Forced Perspective in Magic Coffee Shop</h1>
+			<div class="date">
+				23 January 2022
+			</div>
+			<p>A lot of 2D games use an orthographic or isometric art style, but I went for a more 3D perspective in the hand-drawn background of <a href="https://jacobbell.itch.io/magiccoffeeshop">Magic Coffee Shop</a>. I was inspired by Playstation 1 Final Fantasy games, which pre-rendered their 3D environments as 2D images so they could have lots of detail on the low-powered hardware. They spearated the environment into several images so 3D characters could move in front of or behind them. By applying the same camera projection when pre-rendering the background and real-time rendering the characters, the two blend together nicely.</p>
+			<div class="picture"><img src="magic_coffee_shop/full_scene.png"></div>
+			<p>I didn't make the background in Magic Coffee Shop using a 3D modeling program; it's all hand drawn in a forced perspective that makes no mathematical sense. Making the characters move in front of or behind objects and get smaller as they move away from the camera requires some customized tricks.</p>
+
+			<h2>Problems with Perspective Depth</h2>
+			<p>Since 2D has no depth axis, you need a clever way to scale down characters as they move away from the camera. Most of the time moving up along the y-axis in the scene corresponds to moving away from the camera. A simple formula tuned to the scene can scale characters based on their y-positions.</p>
+			<div class="picture"><img src="magic_coffee_shop/height_planes.png"></div>
+			<p>This method has a problem with multiple height planes. At these two positions, the character is the same distance from the camera and should be rendered at the same size, but he has very different y-positions.</p>
+
+			<h2>Problems Determining Z-Index</h2>
+			<p>In the absence of a proper depth axis, Godot engine refers to the draw order of sprites as the z-index. A sprite will appear in front of another if its z-index is larger. If the sprite's origin is placed where it touches the floor, we can calculate a good z-index using its y-position.</p>
+			<div class="picture"><img src="magic_coffee_shop/y_based_z_index.png"></div>
+			<p>This works well for axis-aligned sprites, but has problems for diagonal ones.</p>
+			<div class="picture"><img src="magic_coffee_shop/z_ordering_problem.png"></div>
+			<p>One solution is to split the railing into several sub-sprites, but this could still have problems for narrow objects.</p>
+			<div class="picture"><img src="magic_coffee_shop/sub_sprite_problem.png"></div>
+			<h2>Depth Regions</h2>
+			<p>There are only 3 significantly different areas in Magic Coffee Shop: the ground floor, staircase, and upstairs. I defined a polygon for each to represent the missing depth information needed for rendering.</p>
+			<div class="picture"><img src="magic_coffee_shop/regions.png"></div>
+			<p>I gave each region a minimum and maximum scale value that corresponds to the highest and lowest y-positions of the polygon's points. The polygon is hit tested with each dynamic object's origin, and if they're overlapping, scales the object by interpolating between the minimum and maximum scale based on the object's y-position. Now upstairs and downstairs can have individual scaling factors.</p>
+
+			<p>The two bigger regions are connected by a staircase. The minimum and maximum scaling factors of the staircase region must carefully line up with the upstairs and downstairs regions or a sprite's scale will visibly jump when crossing the boundaries.</p>
+
+			<p>The regions also change the z-index of sprites, according to <span class="inline-code">sprite.zIndex = region.zIndex + sprite.position.y</span> (positive y goes down in Godot engine). The ground floor region's z-index is set to 1000, the staircase region's is 0, and the upstairs region's is -1000. Now a sprite always appears in front of the railing on the ground floor, and always appears behind it when upstairs.</p>
+		</div>
+	</div>
+</body>
+</html>

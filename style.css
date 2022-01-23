@@ -26,6 +26,7 @@ h2 {
 
 td {
 	padding-right: 10px;
+	padding-bottom: 5px
 }
 
 .video {
@@ -127,7 +128,19 @@ p {
 	background-color: #ECE8E6;
 	padding: 0px 8px;
 	border-radius: 5px;
-	white-space: nowrap;
+	display: inline-block;
+}
+
+.picture {
+	text-align: center;
+	margin-bottom: 20px;
+	font-style: italic;
+	color: #808080;
+}
+
+.picture img {
+	max-width: 100%;
+	max-height: 400px;
 }
 
 .footer {
