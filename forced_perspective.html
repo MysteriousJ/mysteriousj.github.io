@@ -15,14 +15,16 @@
 			<div class="date">
 				23 January 2022
 			</div>
-			<p>A lot of 2D games use an orthographic or isometric art style, but I went for a more 3D perspective in the hand-drawn background of <a href="https://jacobbell.itch.io/magiccoffeeshop">Magic Coffee Shop</a>. I was inspired by Playstation 1 Final Fantasy games, which pre-rendered their 3D environments as 2D images so they could have lots of detail on the low-powered hardware. They spearated the environment into several images so 3D characters could move in front of or behind them. By applying the same camera projection when pre-rendering the background and real-time rendering the characters, the two blend together nicely.</p>
+			<p>A lot of 2D games use an orthographic or isometric art style, but I went for a more 3D perspective in the hand-drawn background of <a href="https://jacobbell.itch.io/magiccoffeeshop">Magic Coffee Shop</a>. I was inspired by Playstation 1 Final Fantasy games, which pre-rendered their 3D environments as 2D images so they could have lots of detail on the low-powered hardware. They separated the environment into several images so 3D characters could move in front of or behind them. By applying the same camera projection when pre-rendering the background and real-time rendering the characters, the two blend together nicely.</p>
 			<div class="picture"><img src="magic_coffee_shop/full_scene.png"></div>
 			<p>I didn't make the background in Magic Coffee Shop using a 3D modeling program; it's all hand drawn in a forced perspective that makes no mathematical sense. Making the characters move in front of or behind objects and get smaller as they move away from the camera requires some customized tricks.</p>
 
 			<h2>Problems with Perspective Depth</h2>
 			<p>Since 2D has no depth axis, you need a clever way to scale down characters as they move away from the camera. Most of the time moving up along the y-axis in the scene corresponds to moving away from the camera. A simple formula tuned to the scene can scale characters based on their y-positions.</p>
+			<div class="picture"><img src="magic_coffee_shop/y_scaling.png"></div>
+			<p>This method has a problem with multiple height planes.</p>
 			<div class="picture"><img src="magic_coffee_shop/height_planes.png"></div>
-			<p>This method has a problem with multiple height planes. At these two positions, the character is the same distance from the camera and should be rendered at the same size, but he has very different y-positions.</p>
+			<p>At these two positions, the character is the same distance from the camera and should be rendered at the same size, but he has very different y-positions.</p>
 
 			<h2>Problems Determining Z-Index</h2>
 			<p>In the absence of a proper depth axis, Godot engine refers to the draw order of sprites as the z-index. A sprite will appear in front of another if its z-index is larger. If the sprite's origin is placed where it touches the floor, we can calculate a good z-index using its y-position.</p>
