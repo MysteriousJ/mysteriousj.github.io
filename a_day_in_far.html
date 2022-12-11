@@ -1,0 +1,71 @@
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>A Day in Far Manager&#8211Jacob Bell's Blog</title>
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<link rel="shortcut icon" href="favicon.png">
+</head>
+<body>
+	<div class="content">
+		<div class="header">
+			<a href="index.html"><img src="avatar.png"><span>Jacob Bell's Blog</span></a>
+		</div>
+		<div class="post">
+			<h1>A Day in Far Manager</h1>
+			<div class="date">
+				11 December 2022
+			</div>
+			<p>Replacing my use of Windows Explorer and a separate command line window with Far Manager is the biggest productivity boost I've had in years. Few know about or how to use this tool, so I'm writing this blog post to show how it makes my daily computer tasks significantly quicker.</p>
+
+			<h2>What is it?</h2>
+			<p>Far Manager is a shell, similar to Bash or PowerShell, and has a text-user-interface, similar to Vim (don't worry, it's much more intuitive). It runs in the terminal of your choice. Here's Far running in the default Windows terminal.</p>
+			<div class="picture"><img src="far_manager/win_terminal.png"></div>
+			<p>You can get Far for Windows at <a href=https://www.farmanager.com/">https://www.farmanager.com/</a>" or <a href="https://github.com/FarGroup/FarManager">https://github.com/FarGroup/FarManager</a></br>
+			There's a Linux and Mac port of Far Manager available at <a href="https://github.com/elfmz/far2l">https://github.com/elfmz/far2l</a>. Rather than running in any terminal, this version renders to its own window.</p>
+
+			<h2>ConEmu</h2>
+			<p>I run Far in ConEmu, a terminal for Windows that has some specialized integration for Far Manager, such as click-and-drag support with other applications.</p>
+			<div class="picture"><img src="far_manager/conemu.png"></div>
+			<p>Though the deep blue has its life-long supporters, ConEmu makes it easy to use other color themes with Far.</p>
+			<p>ConEmu has "Tasks" which run a script at startup or when opening a new tab. I use these to run vcvarsall.bat, initializing Visual Studio command line tools, and then launch Far. Here's my task script if you're curious</p>
+			<div class="code">
+				cmd.exe /k ""C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64 && set "FARHOME=" & "%ConEmuDrive%\programs\far_manager\far.exe" /w /p"%ConEmuDir%\Plugins\ConEmu;%FARHOME%\Plugins;%FARPROFILE%\Plugins""
+			</div>
+
+			<h2>Panels</h2>
+			<p>Far has two file explorer panels, and I can switch between them with tab. Up and down arrow keys navigate items, enter or page-down goes into a directory, and page-up goes up a directory. I can jump to a specific item by holding alt and typing the item's name.</p>
+			<p>After launching ConEmu, both panels are in the default directory, Far's installation location. I can jump back to where I was yesterday by pressing alt+F12 to bring up folder history.</p>
+			<div class="picture"><img src="far_manager/history.png"></div>
+
+			<h2>Doing some file system work</h2>
+			<p>The task for today is adding a new NPC to my game. Pressing F7 opens a dialog to create a new folder. I'll type in a name and press enter.</p>
+			<div class="picture"><img src="far_manager/make_folder.png"></div>
+			<p>Next I want to copy the data files from another NPC as a starting point. Tab switches to the other panel, and alt+F12 brings up folder history.</p>
+			<div class="picture"><img src="far_manager/last_dir.png"></div>
+			<p>The most recent entry is the directory I just went to, so pressing enter sets the right panel to be in the same directory as the left.</p>
+			<p>On one panel, I'll navigate to the directory I want to copy from. On the other, I'll navigate to the directory I want to copy to. Pressing shift+down-arrow selects files, and F5 opens the copy dialog. The default path to copy to is the other panel's location, so just pressing enter will do the copy.</p>
+			<div class="picture"><img src="far_manager/copy.png"></div>
+			<p>I need to make some changes to the newly copied text file. I'll use Far's built-in editor by pressing F4.</p>
+			<div class="picture"><img src="far_manager/edit.png"></div>
+			<p>It's basically just notepad, but staying in one program is nice for quick, simple edits. Pressing F2 saves, and F4 closes.</p>
+			<p>I don't quite remember the syntax I had for defining which animations allow blinking. I can go to my root directory for entities and press alt+F7 to search.</p>
+			<div class="picture"><img src="far_manager/find.png"></div>
+			<p>This brings up a list of all files ending with ".entity" and containing the text "blink".</p>
+			<p>Now I need to add the blink code to the business man file. Rather than navigating back to it, pressing alt+F11 brings up view history, and I can open Far's editor from there.</p>
+			<div class="picture"><img src="far_manager/edit_history.png"></div>
+
+			<h2>Command Line</h2>
+			<p>I'm ready to commit my changes. At the bottom of Far is a command prompt, and I can immediatly start typing in it without having to focus it.</p>
+			<div class="picture"><img src="far_manager/command_line.png"></div>
+			<p>As I type, it comes up with a completion window, sorted by most-recently-used commands, and then others that complete to files in this directory.</p>
+			<p>To see the output of `git status`, I can hide the panels with ctrl+o, or press ctrl+arrow-keys to resize the panels.</p>
+			<div class="picture"><img src="far_manager/resize_panels.png"></div>
+
+			<h2>Thubnails</h2>
+			<p>One thing Far is not good at is thumbnails. I want to look for a specific texture, and that would be easiest to do visually. ConEmu offers basic thumbnail support by pressing F11, then ConEmu Panel Views > Thumbnails mode.</p>
+			<div class="picture"><img src="far_manager/thumbnails.png"></div>
+			<p>This doesn't support custom thumbnails like what Blender or Clips Studio Paint files have in Windows Explorer. On occasions like this where I would prefer Windows Explorer, it's easy to open. Type a `.` on the command line and press enter. Explorer will open to the current Far directory.</p>
+		</div>
+	</div>
+</body>
+</html>
