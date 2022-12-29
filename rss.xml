@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0">
-<channel>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel description="Jacob Bell's Blog">
+  <atom:link href="https://mysteriousj.github.io/rss.xml" rel="self" type="application/rss+xml" />
   <title>Jacob Bell's Blog</title>
   <link>https://mysteriousj.github.io</link>
   <item>
     <title>A Day in Far Manager</title>
     <link>https://mysteriousj.github.io/a_day_in_far.html</link>
+    <guid>2</guid>
   </item>
   <item>
     <title>Forced Perspective in Magic Coffee Shop</title>
     <link>https://mysteriousj.github.io/forced_perspective.html</link>
+    <guid>1</guid>
   </item>
   <item>
     <title>Wind Effects in Oasis in Curses</title>
     <link>https://mysteriousj.github.io/wind_effects.html</link>
+    <guid>0</guid>
   </item>
 </channel>
 </rss> 
