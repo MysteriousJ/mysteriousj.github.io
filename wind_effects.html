@@ -32,13 +32,11 @@
 			<p>I created a skeleton joint for each section of the plant and made a looping animation of the plant blowing in the wind. This is blended with the rest pose depending on wind speed. In the game, each plant's wind animation starts from a random frame in the loop so they're not all moving in the same way at once.</p>
 			<h2>Gust Function</h2>
 			<p><a href="https://en.wikipedia.org/wiki/Gaussian_function">Wikipedia</a> was good enough to learn how to parameterize a Gaussian function, and I used <a href="https://www.desmos.com/">Desmos</a> to play around with which parameters I need to tie to which variables in-engine. A wind gust has an origin (past the furthest extent of the game level), speed, duration, and start time. These correspond to the Gaussian function like so:</p>
-			<div class="code">
-				x = object.position.x - gust.origin.x;<br>
-				a = gust.speed;<br>
-				b = gust.speed * (runTime - gust.startTime);<br>
-				c = (x-b < 0)? gust.duration/5 : gust.duration/20;<br>
-				effect = a*powf(eulerNumber, -(x-b)*(x-b)/(4*c*c));<br>
-			</div>
+			<pre class="code">x = object.position.x - gust.origin.x;
+a = gust.speed;
+b = gust.speed * (runTime - gust.startTime);
+c = (x-b < 0)? gust.duration/5 : gust.duration/20;
+effect = a*powf(eulerNumber, -(x-b)*(x-b)/(4*c*c));</pre>
 			<p>Wind gusts come suddenly and leave slowly (or at least that's how it feels when you're in one). Skewing a Gaussian function is apparently complicated, so instead I broke it into two halves at the peek, giving it a short head and long tail. You can play with this model here: <a href="https://www.desmos.com/calculator/fdvxfnkntx">https://www.desmos.com/calculator/fdvxfnkntx</a></p>
 			<h2>Subtle Details</h2>
 			<p>Everything in this system looked pretty good except for the motion at low wind speeds. As a gust came in and left, you could see all the parts of the plant be forced into and out of the rest pose, looking very mechanical. Adding a small, constant wind force helped, but it still looked a bit uncanny. Fortunately, I had my close-up videos from the foothill trip to study.</p>
@@ -51,8 +49,8 @@
 			<video controls preload="false" src="wind_effects/radial_wind_demo.mp4"></video>
 			<p>These radial gusts are largely the same as linear gusts. Most importantly, they fall off with distance, and can blow plants to the left as well as to the right. To make them blow left, I just used a negative wind speed, which corresponds with negative joint weights. I may re-evaluate this hack when I make a level where the natural winds blow right to left.</p>
 			<h2>Audio</h2>
-			<p>In the video at the top, you can hear the wind sound effects I recorded in a handful of minutes with a $7 lapel mic. I really need to get a better mic and redo these, but it gets the point across. A low-pitch wind sound plays continuously and follows a <span class="inline-code">y = (normalizedWindspeed^2)-0.01</span> volume curve, evaluated at the camera's position.</p>
-			<p>By itself, it's missing that high-pitch whistle you hear at high wind speeds. At first I tried adjusting the playback speed of the sound by the wind speed, but it sounded more like a vacuum cleaner turning on and off. I searched youtube for "ASMR wind" to get some reference videos of what nice-sounding wind sounds like, and really, it's more like the whistling is layered on top of the lower-pitch blowing. So, I added another high-pitch wind sound that kicks in at higher wind speeds with a <span class="inline-code">y = (normalizedWindspeed^8)-0.01</span> volume curve, and playback speed adjusted by <span class="inline-code">normalizedWindspeed+0.2</span>.</p>
+			<p>In the video at the top, you can hear the wind sound effects I recorded in a handful of minutes with a $7 lapel mic. I really need to get a better mic and redo these, but it gets the point across. A low-pitch wind sound plays continuously and follows a <span class="code">y = (normalizedWindspeed^2)-0.01</span> volume curve, evaluated at the camera's position.</p>
+			<p>By itself, it's missing that high-pitch whistle you hear at high wind speeds. At first I tried adjusting the playback speed of the sound by the wind speed, but it sounded more like a vacuum cleaner turning on and off. I searched youtube for "ASMR wind" to get some reference videos of what nice-sounding wind sounds like, and really, it's more like the whistling is layered on top of the lower-pitch blowing. So, I added another high-pitch wind sound that kicks in at higher wind speeds with a <span class="code">y = (normalizedWindspeed^8)-0.01</span> volume curve, and playback speed adjusted by <span class="code">normalizedWindspeed+0.2</span>.</p>
 			<h2>Particles</h2>
 			<p>One last touch is sand kicking up and leaves blowing off bushes when the wind speed crosses a threshold. These are created by hand-placed spawner objects. While I'm using engine features I'm calling a "particle system," it's in a very early state and they're really just sprite animations moving across the screen.</p>
 		</div>

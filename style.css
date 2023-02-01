@@ -1,72 +1,12 @@
 html {
 	-webkit-text-size-adjust: 100%;
 }
-
 body {
 	background-color: rgb(200,195,190);
 	font-family: "Arial";
 	font-size: 1em;
 	margin: 0;
 }
-
-.post a {
-	color: rgb(0,120,180);
-}
-
-h1 {
-	font-size: 3em;
-	font-weight: bold;
-	margin: 0pt;
-}
-
-h2 {
-	font-size: 1.5em;
-	margin-top: 20px;
-	margin-bottom: 5px;
-}
-
-td {
-	padding-right: 10px;
-	padding-bottom: 5px
-}
-
-video {
-	max-width: 100%;
-	max-height: 500px;
-	margin: auto;
-	margin-bottom: 20px;
-	display: block;
-	border-radius: 10px;
-}
-
-.header {
-	padding-top: 30pt;
-	padding-bottom: 30pt;
-	text-align: center;
-	background-color: #202020;
-	border-radius: 15px 15px 0px 0px;
-	color: #d0d0d0;
-	font-size: 4em;
-}
-
-.header a {
-	text-decoration: none;
-	color: #F0EBE8;
-}
-
-.header img {
-	height: 1.4em;
-	width: 1.4em;
-	vertical-align: middle;
-	border-radius: 100%;
-	margin-right: 20px;
-}
-
-.header span {
-	vertical-align: middle;
-	display: inline-block;
-}
-
 .content {
 	margin: auto;
 	margin-top: 10px;
@@ -78,8 +18,58 @@ video {
 	color: #101010;
 }
 
+.header {
+	padding-top: 30pt;
+	padding-bottom: 30pt;
+	text-align: center;
+	background-color: #202020;
+	border-radius: 15px 15px 0px 0px;
+	color: #d0d0d0;
+	font-size: 4em;
+}
+.header a {
+	text-decoration: none;
+	color: #F0EBE8;
+}
+.header img {
+	height: 1.4em;
+	width: 1.4em;
+	vertical-align: middle;
+	border-radius: 100%;
+	margin-right: 20px;
+}
+.header span {
+	vertical-align: middle;
+	display: inline-block;
+}
+
 .post {
 	padding: 20pt;
+}
+.post a {
+	color: rgb(0,120,180);
+}
+
+h1 {
+	font-size: 3em;
+	font-weight: bold;
+	margin: 0pt;
+}
+h2 {
+	font-size: 1.5em;
+	margin-top: 20px;
+	margin-bottom: 5px;
+}
+
+td {
+	padding-right: 10px;
+	padding-bottom: 5px
+}
+.date {
+	font-style: italic;
+	color: #808080;
+	margin-bottom: 2em;
+	white-space: nowrap;
 }
 
 p {
@@ -88,47 +78,68 @@ p {
 	overflow-wrap: break-word;
 }
 
-.date {
-	font-style: italic;
-	color: #808080;
-	margin-bottom: 2em;
-	white-space: nowrap;
-}
-
-.code {
-	font-family: "consolas", monospace;
-	border: solid;
-	border-width: 1px;
-	border-color: #B0A8A0;
-	background-color: #EAE6E4;
-	padding: 10px;
-	margin: 20px 0px;
-	border-radius: 10px;
-	overflow-wrap: anywhere;
-}
-
-.inline-code {
-	font-family: "consolas", monospace;
-	border: solid;
-	border-width: 1px;
-	border-color: #B0A8A0;
-	background-color: #ECE8E6;
-	padding: 0px 8px;
-	border-radius: 5px;
-	display: inline-block;
-}
-
 .picture {
 	text-align: center;
 	margin-bottom: 20px;
 	font-style: italic;
 	color: #808080;
 }
-
 .picture img {
 	max-width: 100%;
 	max-height: 400px;
 }
+video {
+	max-width: 100%;
+	max-height: 500px;
+	margin: auto;
+	margin-bottom: 20px;
+	display: block;
+	border-radius: 10px;
+}
+
+details.code {
+	font-family: "consolas", monospace;
+	background-color: #DACFC6;
+	border-radius: 10px;
+	margin: 20px 0px;
+}
+details summary {
+	padding: 15px;
+}
+details[open] summary {
+	box-shadow: 0px 10px 10px -10px #8A6868;
+}
+
+pre {
+	font-family: "consolas", monospace;
+	color: #302020;
+	tab-size: 4;
+}
+details pre {
+	padding: 10px;
+	margin: 0px;
+	overflow: auto;
+}
+.code {
+	font-family: "consolas", monospace;
+	background-color: #DACFC6;
+	color: #302020;
+}
+pre.code {
+	padding: 10px;
+	margin: 1px 0px;
+	border-radius: 10px;
+}
+details pre.code {
+	background-color: #00000000;
+}
+span.code {
+	padding: 0px 8px;
+	border-radius: 5px;
+	margin: 0px;
+	display: inline-block;
+}
+pre .comment { color: rgb(150,100,0); }
 
 .footer {
 	font-size: 0.8em;
@@ -137,7 +148,6 @@ p {
 	padding-bottom: 20px;
 	line-height: 3.5;
 }
-
 .footer a {
 	text-decoration: none;
 	color: #F0EBE8;

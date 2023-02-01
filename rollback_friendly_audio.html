@@ -1,0 +1,88 @@
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Forced Perspective in Magic Coffee Shop&#8211Jacob Bell's Blog</title>
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<link rel="shortcut icon" href="favicon.png">
+</head>
+<body>
+	<div class="content">
+		<div class="header">
+			<a href="index.html"><img src="avatar.png"><span>Jacob Bell's Blog</span></a>
+		</div>
+		<div class="post">
+			<h1>Code Test</h1>
+			<div class="date">
+				30 January 2023
+			</div>
+			<details class="code">
+				<summary>minimal_wasapi.cpp</summary>
+<pre><span class="comment">// Compile: cl minimal.cpp /link ole32.lib</span>
+#include &ltwindows.h&gt
+#include &ltinttypes.h&gt
+#include &ltmath.h&gt
+#include &ltmmdeviceapi.h&gt
+#include &ltaudioclient.h&gt
+
+#define BYTES_PER_CHANNEL sizeof(float)
+#define CHANNELS_PER_SAMPLE 1
+#define SAMPLES_PER_SECOND 44100
+
+int main()
+{
+	CoInitializeEx(nullptr, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE);
+
+	IMMDeviceEnumerator* enumerator;
+	CoCreateInstance( __uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
+
+	IMMDevice* endpoint;
+	enumerator-&gtGetDefaultAudioEndpoint(eRender, eMultimedia, &endpoint);
+
+	IAudioClient* audioClient;
+	endpoint-&gtActivate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&audioClient);
+
+	REFERENCE_TIME defaultDevicePeriod;
+	REFERENCE_TIME minDevicePeriod;
+	audioClient-&gtGetDevicePeriod(&defaultDevicePeriod, &minDevicePeriod);
+
+	WAVEFORMATEX format = {0};
+	format.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+	format.nChannels = CHANNELS_PER_SAMPLE;
+	format.nSamplesPerSec = SAMPLES_PER_SECOND;
+	format.wBitsPerSample = BYTES_PER_CHANNEL*8;
+	format.nBlockAlign = (CHANNELS_PER_SAMPLE*BYTES_PER_CHANNEL);
+	format.nAvgBytesPerSec = SAMPLES_PER_SECOND*format.nBlockAlign;
+	audioClient-&gtInitialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, defaultDevicePeriod, 0, &format, 0);
+
+	IAudioRenderClient* renderClient;
+	audioClient-&gtGetService(__uuidof(IAudioRenderClient), (void**)&renderClient);
+	uint32_t bufferSampleCount;
+	audioClient-&gtGetBufferSize(&bufferSampleCount);
+
+	uint64_t sampleTime = 0;
+	audioClient-&gtStart();
+
+	while (1)
+	{
+		uint32_t paddingSampleCount; 
+		audioClient-&gtGetCurrentPadding(&paddingSampleCount);
+
+		uint32_t sampleCount = bufferSampleCount - paddingSampleCount;
+		float* buffer;
+		if (SUCCEEDED(renderClient-&gtGetBuffer(sampleCount, (BYTE**)&buffer)))
+		{
+			<span class="comment">// Sine wave</span>
+			float toneHerz = 500;
+			for (uint32_t i=0; i&ltsampleCount; ++i) {
+				buffer[i] = sinf(sampleTime*3.14159f*toneHerz/SAMPLES_PER_SECOND);
+				sampleTime += 1;
+			}
+			renderClient-&gtReleaseBuffer(sampleCount, 0);
+		}
+	}
+}</pre>
+			</details>
+		</div>
+	</div>
+</body>
+</html>
