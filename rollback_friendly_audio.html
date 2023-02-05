@@ -1,7 +1,7 @@
 <html>
 <head>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Forced Perspective in Magic Coffee Shop&#8211Jacob Bell's Blog</title>
+	<title>Rollback Friendly Audio&#8211Jacob Bell's Blog</title>
 	<link rel="stylesheet" type="text/css" href="style.css">
 	<link rel="shortcut icon" href="favicon.png">
 </head>
@@ -11,12 +11,48 @@
 			<a href="index.html"><img src="avatar.png"><span>Jacob Bell's Blog</span></a>
 		</div>
 		<div class="post">
-			<h1>Code Test</h1>
+			<h1>Rollback Friendly Audio</h1>
 			<div class="date">
 				30 January 2023
 			</div>
-			<details class="code">
-				<summary>minimal_wasapi.cpp</summary>
+			<p>For an overview of rollback netcode, watch <a href="https://www.youtube.com/watch?v=0NLe4IpdS1w">Core-A Gaming's video on it</a>.</p>
+			<p>Rollback netcode requires that game state can be duplicated. Each frame needs to be saved into a history buffer so the game can go back a few frames and resimulate when an input arrives late and is different than expected. For example, if the opponent's input for frame 2 arrives on frame 6, we go back in time and resimulate frames 2, 3, 4, and 5 with the new information, then simulate and render frame 6. This is easy if the game state is made up of staticly sized arrays and no pointers that reference memory inside the game state:</p>
+<pre class="code">struct EntityHandle {
+	int id;
+	int index;
+};
+
+struct Entity {
+	Vector3 position;
+	int state;
+	EntityHandle target;
+};
+
+struct GameState {
+	Entity entities[64]
+	int randomSeries;
+};</pre>
+			<p>It's also easy with a pure functional style of game update that always returns a new game state instead of changing the old one.</p>
+<pre class="code">frames[n+1] = updateGameState(frames[n]);</pre>
+			<p>Things get complicated quickly when pointer-filled game state is being updated through modifications. Netherealms Studios did a great <a href="">GDC talk on the difficulty of integrating rollback netcode into their object-oriented game engine</a>.</p>
+			<p>Only state that changes depending on inputs needs to be stored for each frame. The game will always catch back up to real-time after a rollback, so things like a waterfall's animation in the background can seamlessly ignore rollback. There probably won't be big enough differences before and after rollback to warrent re-simulating every in-between frame for temporal graphics effects like TAA.</p>
+			<p>Audio is a different challenge: it depends on player input but runs asynchronously with gameplay. Starting and stopping sounds requires separate timers from the ususal game time step. Not being able to cancel a sound would be very distracting.</p>
+			<div class="picture">In an early version of King of Fighters 15, sounds would continue to play after a rollback. Especially noticible if a K.O. was rolled back.</div>
+			<p>There were 4 axes along which I wanted to optimize audio for rollback:</p>
+			<ul>
+				<li>Latency: speakers should begin playing audio right after a sound is triggered in game.</li>
+				<li>Performance: avoid doing unnecessary work on the CPU.</li>
+				<li>Rollbackability: it should be possible to go back back in time to a previous frame's audio state and play sounds at the correct time while fast-forwarding.</li>
+				<li>Simplicity: the code should be clear and easy to understand. Reduce the chance of memory bugs and have no possibility of race conditions.</li>
+			</ul>
+			<p>It is possible to optimize for all 4 at once with the right plan.</p>
+			<h2>Playing Audio</h2>
+			<p>To output audio, we ask the operating system for a buffer and fill it with audio samples. There are various levels of abstraction to do this, but the lowest level thing on Windows is WASAPI.</p>
+			<p>get a buffer, we need a handle to an audio device, such as headphones or a laptop's built-in speakers. To get a device, we need an enumerator. This can list all of the audio devices connected to the system, but WASAPI's has a convenient method to get the user's primary device, or "default endpoint."</p>
+			<p>With a device we can create a client with a specific format, and a render-client that actually gives us the buffer for writting samples. In my game I use floating point for samples in the [0, 1] range, since it offers plenty of overhead when mixing and makes the math simple.</p>
+			<p>The client's period hints how long we want the buffer to be. This directly impacts latency.</p>
+			<p>With everything set up, we can write audio samples in a loop. First we get the "padding," which indicates how much of the buffer is unplayed. We then get a pointer and write to the played region of the buffer. The following example program shows all these steps and outputs a sine wave.</p>
+<details class="code"><summary>minimal_wasapi.cpp</summary>
 <pre><span class="comment">// Compile: cl minimal.cpp /link ole32.lib</span>
 #include &ltwindows.h&gt
 #include &ltinttypes.h&gt
@@ -30,10 +66,10 @@
 
 int main()
 {
-	CoInitializeEx(nullptr, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE);
+	CoInitializeEx(nullptr, COINIT_DISABLE_OLE1DDE);
 
 	IMMDeviceEnumerator* enumerator;
-	CoCreateInstance( __uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
+	CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
 
 	IMMDevice* endpoint;
 	enumerator-&gtGetDefaultAudioEndpoint(eRender, eMultimedia, &endpoint);
@@ -41,8 +77,7 @@ int main()
 	IAudioClient* audioClient;
 	endpoint-&gtActivate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&audioClient);
 
-	REFERENCE_TIME defaultDevicePeriod;
-	REFERENCE_TIME minDevicePeriod;
+	REFERENCE_TIME defaultDevicePeriod, minDevicePeriod;
 	audioClient-&gtGetDevicePeriod(&defaultDevicePeriod, &minDevicePeriod);
 
 	WAVEFORMATEX format = {0};
@@ -56,11 +91,12 @@ int main()
 
 	IAudioRenderClient* renderClient;
 	audioClient-&gtGetService(__uuidof(IAudioRenderClient), (void**)&renderClient);
+
 	uint32_t bufferSampleCount;
 	audioClient-&gtGetBufferSize(&bufferSampleCount);
 
-	uint64_t sampleTime = 0;
 	audioClient-&gtStart();
+	uint64_t sampleTime = 0;
 
 	while (1)
 	{
@@ -80,8 +116,71 @@ int main()
 			renderClient-&gtReleaseBuffer(sampleCount, 0);
 		}
 	}
-}</pre>
-			</details>
+}</pre></details>
+			<p>We need to write to the buffer frequently enough that it won't run out of audio to play. For a buffer of 1000 samples being played at 44100 samples per second, we would need to write every frame at 60fps. Any slower than that and the player could hear drops in the audio.</p>
+			<p>Games often have periods of stuttering slowdown on even the latest hardware, but audio ususally continues playing smoothly. We need a better strategy than expecting to run at a perfect frame rate. One solution would be increasing the size of the buffer. For example, a 50ms buffer would survive down to 20fps. The downside is this introduces latency: the audio data the game outputs will start playing up to 50ms in the future.</p>
+			<p>A small audio buffer optimizes for low latency. To write to a small buffer frequently, most games use a dedicated audio thread. The OS can wake the thread when the audio buffer is low on unplayed samples.</p>
+			<p>Following is mostly the same example, but this time playing on a separate thread and using an event to wake it.</p>
+<details class="code"><summary>audio_thread.cpp</summary>
+<pre>
+</pre></details>
+			<h2>Playing Waveforms</h2>
+			<p>Sounds and music played in a game are stored as a series of samples, making a waveform. To play sounds we zero out the audio output buffer then sum up waveform samples into it, called mixing.</p>
+			Having an audio thread makes accessing waveform assets complicated. Audio in games is always playing, even when loading and unloading assets. We need to be sure that the audio thread is not trying to write out a waveform while that waveform is being unloaded.</p>
+			<p>One way to approach this problem is to mix sounds into an output buffer on the gameplay thread, avoiding multithreaded access of assets entirely. Then we have the problem mentioned before with inconsistent framerates causing audio glitches. We can mitigate it by writing more audio than necessary per frame. If the gameplay thread mixes 100ms worth of audio instead of 16ms worth, the game could drop to 10fps before audio starts dropping.</p>
+			<p>To prevent this from introducing a lot of latency, there are a few strategies we could use:</p>
+			<div class="picture">Double buffer, mixing in the gameplay thread and exchanging buffer pointers with the audio thread when finished.</div>
+			<div class="picture">Mix to a shared ring buffer. A playhead marks the where the audio thread is reading from and a writehead marks where mixed audio can be written to. The writehead stays just in front of the playhead. This is how it's done in DirectSound, a Windows API that wraps WASAPI.</div>
+			<p>With either method, the audio thread copies the mixed audio into the OS's output buffer. The downside is we're mixing more audio than we need to. If the game is currently running at 16ms per frame, that's 84ms worth of audio that goes unused. On the other hand, computers are extreamly fast, and the wasted work might make no difference if the game is already well within its CPU budget.</p>
+			<p>Since one of my goals was to optimize for CPU usage, I wanted to only mix audio that would actually be played. To do that, I needed to mix on the audio thread.</p>
+			<h2>Managing Assets</h2>
+			<p>When multithreading, I don't want to just say "make sure to stop all playing sounds before unloading them." I want to be sure that race conditions will never happen.</p>
+			<p>With audio mixing on its own thread, rendering audio becomes similar to rendering graphics. OpenGL, for instance, gives user code handles to buffers that are managed on the GPU side of things. We could do the same with audio, giving the audio thread control over waveform lifetimes, while the gameplay thread refers to them using handles.</p>
+			<p>The multithreaded operations I needed were</p>
+			<ul>
+				<li>Add a waveform asset and return a handle to it.</li>
+				<li>Mark a waveform asset for deletion that corresponds to a handle.</li>
+				<li>Get the waveform asset that corresponds to a handle.</li>
+			</ul>
+			<p>Waveforms are loaded by the gameplay thread or by dedicated asset loader threads. Either way, adding an asset must be thread-safe. Marking for deletion must be as well, but the audio thread can actually free the memory synchronously after it's submitted the output buffer. In my engine, there's no way to have a handle on the gameplay thread after marking it for deletion, so temporarily getting the read-only asset is not a concern.</p>
+			<p>One additional thing to consider is that the audio thread should finish mixing as soon as possible. After the OS wakes it up, we don't want to pass control back to the OS by waiting on a mutex or similar synchronization construct.</p>
+			<p>By imposing an upper limit on how many waveforms can be loaded at once, it's easy to implement a thread-safe waveform manager using lock-free atomics.</p>
+<details class="code"><summary>waveform_manager.cpp</summary>
+<pre>
+</pre></details>
+			<h2>Time Sychronization</h2>
+			<p>Gameplay tipically measures time in delta times and frames, which tend to be somewhat variable. Audio, hopefully, plays at a consistent rate no matter what else the game is dealing with. Audio time is measured in samples written and is updated every time we aquire the OS's audio buffer. I call this sample-time, and it counts up forever as long as the audio thread is running.</p>
+			<p>The audio thread needs to communicate sample-time back to the game thread so that we know when sounds start and when they're finished. It can write this to a shared variable from which the game thread reads just before updating the state of sounds.</p>
+			<div class="picture">Diagram here</div>
+			<h2>Game Audio Interface</h2>
+			<p>Audio libraries tend to have interfaces where you play sounds with a function: <span class="code">soundHandle = playSound(waveFile)</span>. Likewise, you would update and stop sounds by calling functions that take the sound handle.</p>
+			<p>This means the list of playing sounds is managed by the audio library without a clear way to roll back to a previous state. When a rollback is needed, the game would have to tell the audio library to playing some sounds, roll back, and then start playing sounds again as we go through the frames.</p>
+			<p>How would the audio library know at what point in time a sound started? Rollback cuts off the beginning of animations; it should also cut off the biginning of sounds so nothing is delayed.
+			<br/>How could we identify which sounds started before the rollback so we don't lose those?
+			<br/>How do we make sure sounds are re-played at the exact same point? Even one sample off is noticible.
+			</p>
+			<p>Answering these questions could get complicated, especially if the library you're using is trying to be a blackbox. To optimize for simplicity, what we really need is a plain data structure of audio state that can be saved and duplicated.</p>
+<pre class="code">struct Sound {
+	AssetHandle waveFile;
+	uint64_t startedSampleTime;
+	float volume;
+};
+
+struct AudioState {
+	Sound sounds[50];
+};</pre>
+			<p>Each frame has its own <span class="code">AudioState</span> that can be trivially copied. Alongside the gamestate frame history, a history of sample-times can track when sounds were started per frame, so we can start playing sounds "in the past" durring rollback.</p>
+			<h2>Transfering Data Between Gameplay Thread and Audio Thread</h2>
+			<p>The sounds built up over a game update can be copied to a buffer for the audio thread. When the OS wakes the audio thread, it can update its sound state to match the buffer. It plays each sound from its <span class="code">startedSampleTime</span> relative to the audio thread's current sample-time.</p>
+			<p>In the other direction, the audio thread produces a sample-time that the gameplay thread uses to start sounds. To make these as close as possible, I set a sound's <span class="code">startedSampleTime</span> to zero when it's trigger while updating game state, then at the end of the update, get the audio thread's sample-time and set all sounds with zero <span class="code">startedSampleTime</span> to that. I add one period of delay to ensure the beginning won't be cut off.</p>
+			<h2>Device Changes</h2>
+			<p>With WASAPI, the audio client is tied to a device. When the user switches their primary device from headphones to speakers, the audio will continue playing on headphones. When the user unplugs their headphones, WASAPI functions will return error messages. In both cases I'd rather support what the user is trying to do.</p>
+			<p>We can create an object extending the <span class="code">IMMNotificationClient</span> interface that listens for device change events. When an event occurs, I wake the audio thread, destroy all the old WASAPI objects, and recreate them with the new default device.</p>
+			<p>One last problem is when there's no device at all. The game will continue queueing sounds but the audio thread will never wake to play them, and without updated sample-times the gameplay thread won't know when to end them. I wrote a special case for this to time out waiting on the audio thread every second, allowing the thread to advance sample-time without playing any sounds.</p>
+			<p>This example program uses an audio thread to play a sine-wave song based on user input. It handles device changes and shows the WASAPI wrapper interface I made for my games.</p>
+<details class="code"><summary>music_box.cpp</summary>
+<pre>
+</pre></details>
 		</div>
 	</div>
 </body>
