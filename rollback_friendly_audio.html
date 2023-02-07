@@ -16,7 +16,7 @@
 				30 January 2023
 			</div>
 			<p>For an overview of rollback netcode, watch <a href="https://www.youtube.com/watch?v=0NLe4IpdS1w">Core-A Gaming's video on it</a>.</p>
-			<p>Rollback netcode requires that game state can be duplicated. Each frame needs to be saved into a history buffer so the game can go back a few frames and resimulate when an input arrives late and is different than expected. For example, if the opponent's input for frame 2 arrives on frame 6, we go back in time and resimulate frames 2, 3, 4, and 5 with the new information, then simulate and render frame 6. This is easy if the game state is made up of staticly sized arrays and no pointers that reference memory inside the game state:</p>
+			<p>Rollback netcode requires that game state can be duplicated. Each frame needs to be saved into a history buffer so the game can go back a few frames and resimulate when an input arrives late and is different than expected. For example, if the opponent's input for frame 2 arrives on frame 6, we go back in time and resimulate frames 2, 3, 4, and 5 with the new information, then simulate and render frame 6. This is easy if the game state is made up of statically sized arrays and no pointers that reference memory inside the game state:</p>
 <pre class="code">struct EntityHandle {
 	int id;
 	int index;
@@ -46,6 +46,7 @@ struct GameState {
 				<li>Simplicity: the code should be clear and easy to understand. Reduce the chance of memory bugs and have no possibility of race conditions.</li>
 			</ul>
 			<p>It is possible to optimize for all 4 at once with the right plan.</p>
+
 			<h2>Playing Audio</h2>
 			<p>To output audio, we ask the operating system for a buffer and fill it with audio samples. There are various levels of abstraction to do this, but the lowest level thing on Windows is WASAPI.</p>
 			<p>get a buffer, we need a handle to an audio device, such as headphones or a laptop's built-in speakers. To get a device, we need an enumerator. This can list all of the audio devices connected to the system, but WASAPI's has a convenient method to get the user's primary device, or "default endpoint."</p>
@@ -54,11 +55,11 @@ struct GameState {
 			<p>With everything set up, we can write audio samples in a loop. First we get the "padding," which indicates how much of the buffer is unplayed. We then get a pointer and write to the played region of the buffer. The following example program shows all these steps and outputs a sine wave.</p>
 <details class="code"><summary>minimal_wasapi.cpp</summary>
 <pre><span class="comment">// Compile: cl minimal.cpp /link ole32.lib</span>
-#include &ltwindows.h&gt
-#include &ltinttypes.h&gt
-#include &ltmath.h&gt
-#include &ltmmdeviceapi.h&gt
-#include &ltaudioclient.h&gt
+#include &lt;windows.h&gt;
+#include &lt;inttypes.h&gt;
+#include &lt;math.h&gt;
+#include &lt;mmdeviceapi.h&gt;
+#include &lt;audioclient.h&gt;
 
 #define BYTES_PER_CHANNEL sizeof(float)
 #define CHANNELS_PER_SAMPLE 1
@@ -72,13 +73,13 @@ int main()
 	CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
 
 	IMMDevice* endpoint;
-	enumerator-&gtGetDefaultAudioEndpoint(eRender, eMultimedia, &endpoint);
+	enumerator-&gt;GetDefaultAudioEndpoint(eRender, eMultimedia, &endpoint);
 
 	IAudioClient* audioClient;
-	endpoint-&gtActivate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&audioClient);
+	endpoint-&gt;Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&audioClient);
 
 	REFERENCE_TIME defaultDevicePeriod, minDevicePeriod;
-	audioClient-&gtGetDevicePeriod(&defaultDevicePeriod, &minDevicePeriod);
+	audioClient-&gt;GetDevicePeriod(&defaultDevicePeriod, &minDevicePeriod);
 
 	WAVEFORMATEX format = {0};
 	format.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
@@ -87,33 +88,33 @@ int main()
 	format.wBitsPerSample = BYTES_PER_CHANNEL*8;
 	format.nBlockAlign = (CHANNELS_PER_SAMPLE*BYTES_PER_CHANNEL);
 	format.nAvgBytesPerSec = SAMPLES_PER_SECOND*format.nBlockAlign;
-	audioClient-&gtInitialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, defaultDevicePeriod, 0, &format, 0);
+	audioClient-&gt;Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, defaultDevicePeriod, 0, &format, 0);
 
 	IAudioRenderClient* renderClient;
-	audioClient-&gtGetService(__uuidof(IAudioRenderClient), (void**)&renderClient);
+	audioClient-&gt;GetService(__uuidof(IAudioRenderClient), (void**)&renderClient);
 
 	uint32_t bufferSampleCount;
-	audioClient-&gtGetBufferSize(&bufferSampleCount);
+	audioClient-&gt;GetBufferSize(&bufferSampleCount);
 
-	audioClient-&gtStart();
+	audioClient-&gt;Start();
 	uint64_t sampleTime = 0;
 
 	while (1)
 	{
 		uint32_t paddingSampleCount; 
-		audioClient-&gtGetCurrentPadding(&paddingSampleCount);
+		audioClient-&gt;GetCurrentPadding(&paddingSampleCount);
 
 		uint32_t sampleCount = bufferSampleCount - paddingSampleCount;
 		float* buffer;
-		if (SUCCEEDED(renderClient-&gtGetBuffer(sampleCount, (BYTE**)&buffer)))
+		if (SUCCEEDED(renderClient-&gt;GetBuffer(sampleCount, (BYTE**)&buffer)))
 		{
 			<span class="comment">// Sine wave</span>
 			float toneHerz = 500;
-			for (uint32_t i=0; i&ltsampleCount; ++i) {
+			for (uint32_t i=0; i&lt;sampleCount; ++i) {
 				buffer[i] = sinf(sampleTime*3.14159f*toneHerz/SAMPLES_PER_SECOND);
 				sampleTime += 1;
 			}
-			renderClient-&gtReleaseBuffer(sampleCount, 0);
+			renderClient-&gt;ReleaseBuffer(sampleCount, 0);
 		}
 	}
 }</pre></details>
@@ -121,9 +122,82 @@ int main()
 			<p>Games often have periods of stuttering slowdown on even the latest hardware, but audio ususally continues playing smoothly. We need a better strategy than expecting to run at a perfect frame rate. One solution would be increasing the size of the buffer. For example, a 50ms buffer would survive down to 20fps. The downside is this introduces latency: the audio data the game outputs will start playing up to 50ms in the future.</p>
 			<p>A small audio buffer optimizes for low latency. To write to a small buffer frequently, most games use a dedicated audio thread. The OS can wake the thread when the audio buffer is low on unplayed samples.</p>
 			<p>Following is mostly the same example, but this time playing on a separate thread and using an event to wake it.</p>
-<details class="code"><summary>audio_thread.cpp</summary>
-<pre>
-</pre></details>
+<details class=code><summary>audio_thread.cpp</summary>
+<pre><span class=comment>// Compile: cl audio_thread.cpp /link ole32.lib</span>
+#include &ltwindows.h&gt;
+#include &ltinttypes.h&gt;
+#include &ltmath.h&gt;
+#include &ltmmdeviceapi.h&gt;
+#include &ltaudioclient.h&gt;
+
+#define BYTES_PER_CHANNEL sizeof(float)
+#define CHANNELS_PER_SAMPLE 1
+#define SAMPLES_PER_SECOND 44100
+
+DWORD WINAPI audioThread(void* param)
+{
+	CoInitializeEx(nullptr, COINIT_DISABLE_OLE1DDE);
+	HRESULT hr;
+	IMMDeviceEnumerator* enumerator;
+	hr = CoCreateInstance( __uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
+
+	IMMDevice* endpoint;
+	hr = enumerator-&gt;GetDefaultAudioEndpoint(eRender, eMultimedia, &endpoint);
+
+	IAudioClient* audioClient;
+	hr = endpoint-&gt;Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&audioClient);
+
+	REFERENCE_TIME defaultDevicePeriod, minDevicePeriod;
+	hr = audioClient-&gt;GetDevicePeriod(&defaultDevicePeriod, &minDevicePeriod);
+
+	WAVEFORMATEX format = {0};
+	format.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+	format.nChannels = CHANNELS_PER_SAMPLE;
+	format.nSamplesPerSec = SAMPLES_PER_SECOND;
+	format.wBitsPerSample = BYTES_PER_CHANNEL*8;
+	format.nBlockAlign = (CHANNELS_PER_SAMPLE*BYTES_PER_CHANNEL);
+	format.nAvgBytesPerSec = SAMPLES_PER_SECOND*format.nBlockAlign;
+	hr = audioClient-&gt;Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, defaultDevicePeriod, 0, &format, 0);
+
+	HANDLE wakeAudioThreadEvent = CreateEventA(0, false, false, 0);
+	hr = audioClient-&gt;SetEventHandle(wakeAudioThreadEvent);
+
+	IAudioRenderClient* renderClient;
+	hr = audioClient-&gt;GetService(__uuidof(IAudioRenderClient), (void**)&renderClient);
+
+	uint32_t bufferSampleCount;
+	hr = audioClient-&gt;GetBufferSize(&bufferSampleCount);
+
+	uint64_t sampleTime = 0;
+	hr = audioClient-&gt;Start();
+
+	while (WaitForSingleObject(wakeAudioThreadEvent, INFINITE) == WAIT_OBJECT_0)
+	{
+		uint32_t paddingSampleCount; 
+		audioClient-&gt;GetCurrentPadding(&paddingSampleCount);
+
+		uint32_t sampleCount = bufferSampleCount - paddingSampleCount;
+		float* buffer;
+		if (SUCCEEDED(renderClient-&gt;GetBuffer(sampleCount, (BYTE**)&buffer)))
+		{
+			<span class=comment>// Sine wave</span>
+			float toneHerz = 500;
+			for (uint32_t i=0; i&lt;sampleCount; ++i) {
+				buffer[i] = sinf(sampleTime*3.14159f*toneHerz/SAMPLES_PER_SECOND);
+				sampleTime += 1;
+			}
+			renderClient-&gt;;ReleaseBuffer(sampleCount, 0);
+		}
+	}
+	return 0;
+}
+
+void main()
+{
+	CreateThread(0, 0, audioThread, 0, 0, 0);
+	Sleep(INFINITE);
+}</pre></details>
+
 			<h2>Playing Waveforms</h2>
 			<p>Sounds and music played in a game are stored as a series of samples, making a waveform. To play sounds we zero out the audio output buffer then sum up waveform samples into it, called mixing.</p>
 			Having an audio thread makes accessing waveform assets complicated. Audio in games is always playing, even when loading and unloading assets. We need to be sure that the audio thread is not trying to write out a waveform while that waveform is being unloaded.</p>
@@ -133,6 +207,7 @@ int main()
 			<div class="picture">Mix to a shared ring buffer. A playhead marks the where the audio thread is reading from and a writehead marks where mixed audio can be written to. The writehead stays just in front of the playhead. This is how it's done in DirectSound, a Windows API that wraps WASAPI.</div>
 			<p>With either method, the audio thread copies the mixed audio into the OS's output buffer. The downside is we're mixing more audio than we need to. If the game is currently running at 16ms per frame, that's 84ms worth of audio that goes unused. On the other hand, computers are extreamly fast, and the wasted work might make no difference if the game is already well within its CPU budget.</p>
 			<p>Since one of my goals was to optimize for CPU usage, I wanted to only mix audio that would actually be played. To do that, I needed to mix on the audio thread.</p>
+
 			<h2>Managing Assets</h2>
 			<p>When multithreading, I don't want to just say "make sure to stop all playing sounds before unloading them." I want to be sure that race conditions will never happen.</p>
 			<p>With audio mixing on its own thread, rendering audio becomes similar to rendering graphics. OpenGL, for instance, gives user code handles to buffers that are managed on the GPU side of things. We could do the same with audio, giving the audio thread control over waveform lifetimes, while the gameplay thread refers to them using handles.</p>
@@ -148,13 +223,10 @@ int main()
 <details class="code"><summary>waveform_manager.cpp</summary>
 <pre>
 </pre></details>
-			<h2>Time Sychronization</h2>
-			<p>Gameplay tipically measures time in delta times and frames, which tend to be somewhat variable. Audio, hopefully, plays at a consistent rate no matter what else the game is dealing with. Audio time is measured in samples written and is updated every time we aquire the OS's audio buffer. I call this sample-time, and it counts up forever as long as the audio thread is running.</p>
-			<p>The audio thread needs to communicate sample-time back to the game thread so that we know when sounds start and when they're finished. It can write this to a shared variable from which the game thread reads just before updating the state of sounds.</p>
-			<div class="picture">Diagram here</div>
+
 			<h2>Game Audio Interface</h2>
 			<p>Audio libraries tend to have interfaces where you play sounds with a function: <span class="code">soundHandle = playSound(waveFile)</span>. Likewise, you would update and stop sounds by calling functions that take the sound handle.</p>
-			<p>This means the list of playing sounds is managed by the audio library without a clear way to roll back to a previous state. When a rollback is needed, the game would have to tell the audio library to playing some sounds, roll back, and then start playing sounds again as we go through the frames.</p>
+			<p>This means the list of playing sounds is managed by the audio library without a clear way to roll back to a previous state. When a rollback is needed, the game would have to tell the audio library to stop playing some sounds, roll back, and then start playing sounds again as we go through the frames.</p>
 			<p>How would the audio library know at what point in time a sound started? Rollback cuts off the beginning of animations; it should also cut off the biginning of sounds so nothing is delayed.
 			<br/>How could we identify which sounds started before the rollback so we don't lose those?
 			<br/>How do we make sure sounds are re-played at the exact same point? Even one sample off is noticible.
@@ -169,10 +241,18 @@ int main()
 struct AudioState {
 	Sound sounds[50];
 };</pre>
-			<p>Each frame has its own <span class="code">AudioState</span> that can be trivially copied. Alongside the gamestate frame history, a history of sample-times can track when sounds were started per frame, so we can start playing sounds "in the past" durring rollback.</p>
+			<p>Each frame has its own <span class="code">AudioState</span> that can be trivially copied. <span class="code">startedSampleTime</span> is when the individual sound should start playing. To set this, we need to know where in time the audio thread is currently rendering.</p>
+
+			<h2>Time Sychronization</h2>
+			<p>Gameplay tipically measures time in delta times and frames, which tend to be somewhat variable. Audio, hopefully, plays at a consistent rate no matter what else the game is dealing with. Audio time is measured in samples written and is updated every time we aquire the OS's audio buffer. I call this sample-time, and it counts up forever as long as the audio thread is running.</p>
+			<p>Alongside the gamestate frame history, a history of sample-times can track when sounds were started per frame, so we can start playing sounds "in the past" durring rollback.</p>
+			<div class="picture">Diagram of game frams and sample times here</div>
+
 			<h2>Transfering Data Between Gameplay Thread and Audio Thread</h2>
 			<p>The sounds built up over a game update can be copied to a buffer for the audio thread. When the OS wakes the audio thread, it can update its sound state to match the buffer. It plays each sound from its <span class="code">startedSampleTime</span> relative to the audio thread's current sample-time.</p>
+			<div class="picture">Diagram here</div>
 			<p>In the other direction, the audio thread produces a sample-time that the gameplay thread uses to start sounds. To make these as close as possible, I set a sound's <span class="code">startedSampleTime</span> to zero when it's trigger while updating game state, then at the end of the update, get the audio thread's sample-time and set all sounds with zero <span class="code">startedSampleTime</span> to that. I add one period of delay to ensure the beginning won't be cut off.</p>
+
 			<h2>Device Changes</h2>
 			<p>With WASAPI, the audio client is tied to a device. When the user switches their primary device from headphones to speakers, the audio will continue playing on headphones. When the user unplugs their headphones, WASAPI functions will return error messages. In both cases I'd rather support what the user is trying to do.</p>
 			<p>We can create an object extending the <span class="code">IMMNotificationClient</span> interface that listens for device change events. When an event occurs, I wake the audio thread, destroy all the old WASAPI objects, and recreate them with the new default device.</p>
