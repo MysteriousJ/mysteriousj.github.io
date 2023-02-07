@@ -46,7 +46,7 @@ body {
 .post {
 	padding: 20pt;
 }
-.post a {
+a {
 	color: rgb(0,120,180);
 }
 
@@ -105,11 +105,24 @@ video {
 	border-radius: 10px;
 	margin: 20px 0px;
 }
-details summary {
-	padding: 15px;
+details.code summary {
+	padding: 10px 15px;
+	display: flex;
+	align-items: center;
+	list-style-type: disclosure-closed;
 }
-details[open] summary {
+details.code[open] summary {
 	box-shadow: 0px 9px 10px -10px #8A6868;
+	list-style-type: disclosure-open;
+}
+
+summary a {
+	margin-left: auto;
+	color: #F0EBE8;
+	background-color: #908078;
+	text-decoration: none;
+	padding: 5px;
+	border-radius: 10px;
 }
 
 pre {

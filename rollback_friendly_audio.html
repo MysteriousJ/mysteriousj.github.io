@@ -53,7 +53,10 @@ struct GameState {
 			<p>With a device we can create a client with a specific format, and a render-client that actually gives us the buffer for writting samples. In my game I use floating point for samples in the [0, 1] range, since it offers plenty of overhead when mixing and makes the math simple.</p>
 			<p>The client's period hints how long we want the buffer to be. This directly impacts latency.</p>
 			<p>With everything set up, we can write audio samples in a loop. First we get the "padding," which indicates how much of the buffer is unplayed. We then get a pointer and write to the played region of the buffer. The following example program shows all these steps and outputs a sine wave.</p>
-<details class="code"><summary>minimal_wasapi.cpp</summary>
+			<details class="code">
+				<summary>
+						<li></li>minimal_wasapi.cpp<a href="rollback_friendly_audio/minimal_wasapi.cpp">raw</a>
+				</summary>
 <pre><span class="comment">// Compile: cl minimal.cpp /link ole32.lib</span>
 #include &lt;windows.h&gt;
 #include &lt;inttypes.h&gt;
@@ -261,6 +264,10 @@ struct AudioState {
 <details class="code"><summary>music_box.cpp</summary>
 <pre>
 </pre></details>
+			<h2>Effects</h2>
+			Some additional features in my audio system.
+			<h3>Looping</h3>
+			<h3>Reverb</h3>
 		</div>
 	</div>
 </body>
