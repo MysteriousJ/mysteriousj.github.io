@@ -125,7 +125,10 @@ int main()
 			<p>Games often have periods of stuttering slowdown on even the latest hardware, but audio ususally continues playing smoothly. We need a better strategy than expecting to run at a perfect frame rate. One solution would be increasing the size of the buffer. For example, a 50ms buffer would survive down to 20fps. The downside is this introduces latency: the audio data the game outputs will start playing up to 50ms in the future.</p>
 			<p>A small audio buffer optimizes for low latency. To write to a small buffer frequently, most games use a dedicated audio thread. The OS can wake the thread when the audio buffer is low on unplayed samples.</p>
 			<p>Following is mostly the same example, but this time playing on a separate thread and using an event to wake it.</p>
-<details class=code><summary>audio_thread.cpp</summary>
+			<details class=code>
+				<summary>
+						<li></li>audio_thread.cpp<a href="rollback_friendly_audio/audio_thread.cpp">raw</a>
+				</summary>
 <pre><span class=comment>// Compile: cl audio_thread.cpp /link ole32.lib</span>
 #include &ltwindows.h&gt;
 #include &ltinttypes.h&gt;
@@ -223,9 +226,13 @@ void main()
 			<p>Waveforms are loaded by the gameplay thread or by dedicated asset loader threads. Either way, adding an asset must be thread-safe. Marking for deletion must be as well, but the audio thread can actually free the memory synchronously after it's submitted the output buffer. In my engine, there's no way to have a handle on the gameplay thread after marking it for deletion, so temporarily getting the read-only asset is not a concern.</p>
 			<p>One additional thing to consider is that the audio thread should finish mixing as soon as possible. After the OS wakes it up, we don't want to pass control back to the OS by waiting on a mutex or similar synchronization construct.</p>
 			<p>By imposing an upper limit on how many waveforms can be loaded at once, it's easy to implement a thread-safe waveform manager using lock-free atomics.</p>
-<details class="code"><summary>waveform_manager.cpp</summary>
+			<details class="code">
+				<summary>
+						<li></li>waveform_manager.cpp<a href="rollback_friendly_audio/waveform_manager.cpp">raw</a>
+				</summary>
 <pre>
-</pre></details>
+</pre>
+			</details>
 
 			<h2>Game Audio Interface</h2>
 			<p>Audio libraries tend to have interfaces where you play sounds with a function: <span class="code">soundHandle = playSound(waveFile)</span>. Likewise, you would update and stop sounds by calling functions that take the sound handle.</p>
@@ -234,7 +241,7 @@ void main()
 			<br/>How could we identify which sounds started before the rollback so we don't lose those?
 			<br/>How do we make sure sounds are re-played at the exact same point? Even one sample off is noticible.
 			</p>
-			<p>Answering these questions could get complicated, especially if the library you're using is trying to be a blackbox. To optimize for simplicity, what we really need is a plain data structure of audio state that can be saved and duplicated.</p>
+			<p>Answering these questions could get complicated, especially if an library is trying to be a blackbox. To optimize for simplicity, what we really need is a plain data structure of audio state that can be saved and duplicated.</p>
 <pre class="code">struct Sound {
 	AssetHandle waveFile;
 	uint64_t startedSampleTime;
@@ -261,13 +268,243 @@ struct AudioState {
 			<p>We can create an object extending the <span class="code">IMMNotificationClient</span> interface that listens for device change events. When an event occurs, I wake the audio thread, destroy all the old WASAPI objects, and recreate them with the new default device.</p>
 			<p>One last problem is when there's no device at all. The game will continue queueing sounds but the audio thread will never wake to play them, and without updated sample-times the gameplay thread won't know when to end them. I wrote a special case for this to time out waiting on the audio thread every second, allowing the thread to advance sample-time without playing any sounds.</p>
 			<p>This example program uses an audio thread to play a sine-wave song based on user input. It handles device changes and shows the WASAPI wrapper interface I made for my games.</p>
-<details class="code"><summary>music_box.cpp</summary>
-<pre>
-</pre></details>
-			<h2>Effects</h2>
-			Some additional features in my audio system.
-			<h3>Looping</h3>
-			<h3>Reverb</h3>
+			<details class="code">
+				<summary>
+					<li></li>music_box.cpp<a href="rollback_friendly_audio/music_box.cpp">raw</a>
+				</summary>
+<pre><span class=comment>// Compile: cl music_box.cpp /link ole32.lib</span>
+<span class=comment>// Usage:   music_box.exe "Hello World"</span>
+#include &lt;windows.h&gt;
+#include &lt;inttypes.h&gt;
+#include &lt;math.h&gt;
+#include &lt;mmdeviceapi.h&gt;
+#include &lt;audioclient.h&gt;
+
+#define BYTES_PER_CHANNEL sizeof(float)
+#define CHANNELS_PER_SAMPLE 1
+#define SAMPLES_PER_SECOND 44100
+
+<span class=comment>// Public API -----------------------------------------------------------------</span>
+struct AudioEvents;
+struct AudioDevice;
+struct AudioBuffer;
+AudioEvents createAudioEvents ();
+void        destroyAudioEvents(AudioEvents* events);
+void        endAudioEvents    (AudioEvents* events);
+AudioDevice createAudioDevice (AudioEvents* events);
+void        destroyAudioDevice(AudioDevice* device);
+bool        waitForAudioBuffer(AudioDevice* device, AudioEvents* events, AudioBuffer* out_buffer);
+void        submitAudioBuffer (AudioDevice* device, AudioBuffer buffer);
+
+<span class=comment>// Implementation -------------------------------------------------------------</span>
+struct AudioEvents
+{
+	volatile bool quit = false;
+	HANDLE wakeAudioThreadEvent;
+};
+
+struct AudioNotifications : public IMMNotificationClient
+{
+	<span class=comment>// Boiler plate</span>
+	ULONG STDMETHODCALLTYPE AddRef() { return 1; }
+	ULONG STDMETHODCALLTYPE Release() { return 1; }
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, VOID **ppvInterface) { return S_OK; }
+	HRESULT OnDeviceAdded(LPCWSTR pwstrDeviceId) { return S_OK; }
+	HRESULT OnDeviceRemoved(LPCWSTR pwstrDeviceId) { return S_OK; }
+	HRESULT OnDeviceStateChanged(LPCWSTR pwstrDeviceId, DWORD dwNewState) { return S_OK; }
+	HRESULT OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPERTYKEY key) { return S_OK; }
+
+	<span class=comment>// Parts that matter</span>
+	volatile bool deviceChanged = false;
+	HANDLE wakeAudioThreadEvent;
+
+	HRESULT OnDefaultDeviceChanged(EDataFlow flow, ERole role, LPCWSTR pwstrDefaultDeviceId) {
+		if (flow == eRender && role == eMultimedia) {
+			deviceChanged = true;
+			SetEvent(wakeAudioThreadEvent);
+		}
+		return S_OK;
+	}
+};
+
+struct AudioDevice
+{
+	uint32_t bufferSampleCount;
+	AudioNotifications* notifications;
+	IMMDeviceEnumerator* enumerator;
+	IMMDevice* endpoint;
+	IAudioClient* audioClient;
+	IAudioRenderClient* renderClient;
+};
+
+struct AudioBuffer
+{
+	float* buffer;
+	uint32_t sampleCount;
+	uint32_t elapsedSampleTime; <span class=comment>// Same as sampleCount when a device is connected</span>
+};
+
+AudioEvents createAudioEvents()
+{
+	AudioEvents events = {0};
+	events.wakeAudioThreadEvent = CreateEventA(0, false, false, 0);
+	return events;
+}
+
+void endAudioEvents(AudioEvents* events)
+{
+	events-&gt;quit = true;
+	SetEvent(events-&gt;wakeAudioThreadEvent);
+}
+
+void destroyAudioEvents(AudioEvents* events)
+{
+	CloseHandle(events-&gt;wakeAudioThreadEvent);
+}
+
+AudioDevice createAudioDevice(AudioEvents* events)
+{
+	AudioDevice device = {0};
+
+	CoCreateInstance( __uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&device.enumerator);
+	device.notifications = new AudioNotifications;
+	device.notifications-&gt;wakeAudioThreadEvent = events-&gt;wakeAudioThreadEvent;
+	device.enumerator-&gt;RegisterEndpointNotificationCallback(device.notifications);
+
+	if (SUCCEEDED(device.enumerator-&gt;GetDefaultAudioEndpoint(eRender, eMultimedia, &device.endpoint))) {
+		if (SUCCEEDED(device.endpoint-&gt;Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&device.audioClient))) {
+			REFERENCE_TIME defaultDevicePeriod;
+			REFERENCE_TIME minDevicePeriod;
+			device.audioClient-&gt;GetDevicePeriod(&defaultDevicePeriod, &minDevicePeriod);
+
+			WAVEFORMATEX customFormat = {0};
+			customFormat.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+			customFormat.nChannels = CHANNELS_PER_SAMPLE;
+			customFormat.nSamplesPerSec = SAMPLES_PER_SECOND;
+			customFormat.wBitsPerSample = BYTES_PER_CHANNEL*8;
+			customFormat.nBlockAlign = (CHANNELS_PER_SAMPLE*BYTES_PER_CHANNEL);
+			customFormat.nAvgBytesPerSec = SAMPLES_PER_SECOND*customFormat.nBlockAlign;
+			device.audioClient-&gt;Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, defaultDevicePeriod, 0, &customFormat, 0);
+			device.audioClient-&gt;SetEventHandle(events-&gt;wakeAudioThreadEvent);
+			device.audioClient-&gt;GetService(__uuidof(IAudioRenderClient), (void**)&device.renderClient);
+			device.audioClient-&gt;GetBufferSize(&device.bufferSampleCount);
+			device.audioClient-&gt;Start();
+		}
+	}
+
+	return device;
+}
+
+void destroyAudioDevice(AudioDevice* device)
+{
+	if (device-&gt;enumerator) {
+		device-&gt;enumerator-&gt;UnregisterEndpointNotificationCallback(device-&gt;notifications);
+		device-&gt;enumerator-&gt;Release();
+	}
+	if (device-&gt;notifications) delete device-&gt;notifications;
+	if (device-&gt;renderClient) device-&gt;renderClient-&gt;Release();
+	if (device-&gt;audioClient) device-&gt;audioClient-&gt;Release();
+	if (device-&gt;endpoint) device-&gt;endpoint-&gt;Release();
+}
+
+bool waitForAudioBuffer(AudioDevice* device, AudioEvents* events, AudioBuffer* out_buffer)
+{
+	DWORD waitResult = WaitForSingleObject(events-&gt;wakeAudioThreadEvent, 1000);
+	if (events-&gt;quit) return false;
+
+	if (device-&gt;notifications-&gt;deviceChanged) {
+		destroyAudioDevice(device);
+		*device = createAudioDevice(events);
+	}
+
+	memset(out_buffer, 0, sizeof(AudioBuffer));
+	if (device-&gt;renderClient) {
+		uint32_t paddingSampleCount; 
+		device-&gt;audioClient-&gt;GetCurrentPadding(&paddingSampleCount);
+		uint32_t sampleCount = device-&gt;bufferSampleCount - paddingSampleCount;
+		float* buffer;
+		if (SUCCEEDED(device-&gt;renderClient-&gt;GetBuffer(sampleCount, (BYTE**)&buffer))) {
+			out_buffer-&gt;buffer = buffer;
+			out_buffer-&gt;sampleCount = sampleCount;
+			out_buffer-&gt;elapsedSampleTime = sampleCount;
+			memset(out_buffer-&gt;buffer, 0, BYTES_PER_CHANNEL*CHANNELS_PER_SAMPLE*sampleCount);
+		}
+	}
+	else if (waitResult == WAIT_TIMEOUT) {
+		out_buffer-&gt;elapsedSampleTime = SAMPLES_PER_SECOND;
+	}
+
+	return true;
+}
+
+void submitAudioBuffer(AudioDevice* device, AudioBuffer buffer)
+{
+	if (device-&gt;renderClient) device-&gt;renderClient-&gt;ReleaseBuffer(buffer.sampleCount, 0);
+}
+
+<span class=comment>// Example Program -------------------------------------------------------------</span>
+struct AudioThreadData
+{
+	AudioEvents events;
+	char sound;
+};
+
+DWORD WINAPI audioThread(void* param)
+{
+	AudioThreadData* data = (AudioThreadData*)param;
+
+	AudioDevice device = createAudioDevice(&data-&gt;events);
+	float t = 0;
+	float volume = 1;
+	float toneHerz = 0;
+
+	AudioBuffer buffer = {0};
+	while (waitForAudioBuffer(&device, &data-&gt;events, &buffer)) {
+		<span class=comment>// Sine wave</span>
+		for (uint32_t i=0; i&lt;buffer.sampleCount; ++i) {
+			// Smoothly turn audio on and off so there's not clicks
+			if (data-&gt;sound == ' ') {
+				volume = max(0, volume - 0.01f);
+			}
+			else {
+				toneHerz = data-&gt;sound * data-&gt;sound / 8;
+				volume = min(1, volume + 0.01f);
+			}
+			<span class=comment>// Render the sound</span>
+			buffer.buffer[i] = volume * sinf(t*3.14159f/SAMPLES_PER_SECOND);
+			t += toneHerz;
+		}
+		submitAudioBuffer(&device, buffer);
+	}
+	destroyAudioDevice(&device);
+	return 0;
+}
+
+int main(int argc, char** argv)
+{
+	CoInitializeEx(nullptr, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE);
+	AudioThreadData threadData = {0};
+	threadData.events = createAudioEvents();
+	HANDLE threadHandle = CreateThread(0, 0, audioThread, &threadData, 0, 0);
+
+	for (int i=0; i&lt;strlen(argv[1]); ++i) {
+		threadData.sound = argv[1][i];
+		Sleep(150);
+	}
+
+	endAudioEvents(&threadData.events);
+	WaitForSingleObject(threadHandle, INFINITE);
+	destroyAudioEvents(&threadData.events);
+	return 0;
+}</pre>
+			</details>
+
+			<h2>Looping</h2>
+			<p>Background music plays in a loop, usually with an intro portion that only plays once. I specify a loop sample index for each song that gets passed to the audio thread. When playing a looping sound past the end of the waveform, it goes back to the loop sample index.</p>
+			[diagram]
+			<h2>Reverb</h2>
+			<p>After mixing, I apply a reverb filter to the OS output buffer for an echoing effect when in game areas like caves. The filter retains its state between uses, so each time it's applied to the audio buffer, reverb carries over from the last.</p>
+			<p>A <a href="">reverb algorithm</a> is serial and relatively expensive. Adding it is what prompted me to switch from the method of filling a buffer with more mixed audio than needed to mixing on the audio thread.</p>
 		</div>
 	</div>
 </body>
