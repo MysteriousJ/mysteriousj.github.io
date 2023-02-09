@@ -86,8 +86,12 @@ p {
 }
 .picture img {
 	max-width: 100%;
-	max-height: 400px;
+	max-height: 600px;
 	border-radius: 5px;
+}
+.picture p {
+	max-width: 30em;
+	margin: auto;
 }
 video {
 	max-width: 100%;
@@ -148,7 +152,7 @@ div.code {
 	overflow-wrap: break-word;
 	padding: 10px;
 }
-pre .comment { color: rgb(180,100,100); }
+pre .comment { color: rgb(180,100,0); }
 
 .footer {
 	font-size: 0.8em;
