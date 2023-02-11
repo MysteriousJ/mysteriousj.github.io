@@ -115,8 +115,8 @@ details.code summary {
 	align-items: center;
 	list-style: none;
 }
-details.code summary::-webkit-details-marker {
-	display: none;
+details.code[open] summary {
+	box-shadow: 0px 9px 10px -10px #8A6868;
 }
 details.code summary li {
 	list-style-type: disclosure-closed;
