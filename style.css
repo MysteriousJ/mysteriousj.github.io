@@ -115,6 +115,9 @@ details.code summary {
 	align-items: center;
 	list-style: none;
 }
+details.code summary::-webkit-details-marker {
+	display: none;
+}
 details.code[open] summary {
 	box-shadow: 0px 9px 10px -10px #8A6868;
 }
@@ -123,7 +126,6 @@ details.code summary li {
 	font-size: 1.2em;
 }
 details.code[open] summary li {
-	box-shadow: 0px 9px 10px -10px #8A6868;
 	list-style-type: disclosure-open;
 	font-size: 1.2em;
 }
