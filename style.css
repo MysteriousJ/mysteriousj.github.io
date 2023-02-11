@@ -115,6 +115,9 @@ details.code summary {
 	align-items: center;
 	list-style: none;
 }
+details.code summary::-webkit-details-marker {
+	display: none;
+}
 details.code summary li {
 	list-style-type: disclosure-closed;
 	font-size: 1.2em;
