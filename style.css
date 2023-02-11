@@ -113,11 +113,16 @@ details.code summary {
 	padding: 10px 15px;
 	display: flex;
 	align-items: center;
-	list-style-type: disclosure-closed;
+	list-style: none;
 }
-details.code[open] summary {
+details.code summary li {
+	list-style-type: disclosure-closed;
+	font-size: 1.2em;
+}
+details.code[open] summary li {
 	box-shadow: 0px 9px 10px -10px #8A6868;
 	list-style-type: disclosure-open;
+	font-size: 1.2em;
 }
 
 summary a {

@@ -225,7 +225,7 @@ void main()
 			</ul>
 			<p>Waveforms are loaded by the gameplay thread or by dedicated asset loader threads. Either way, adding an asset must be thread-safe. Marking for deletion must be as well, but the audio thread can actually free the memory synchronously after it's submitted the output buffer. In my engine, there's no way to have a handle on the gameplay thread after marking it for deletion, so temporarily getting the read-only asset is not a concern.</p>
 			<p>One additional thing to consider is that the audio thread should finish mixing as soon as possible. After the OS wakes it up, we don't want to pass control back to the OS by waiting on a mutex or similar synchronization construct.</p>
-			<p>By imposing an upper limit on how many waveforms can be loaded at once, it's easy to implement a thread-safe waveform manager using lock-free atomics.</p>
+			<p>By imposing an upper limit on how many waveforms can be loaded at once, it's easy to implement a thread-safe waveform manager using <a href="https://learn.microsoft.com/en-us/windows/win32/sync/interlocked-variable-access">lock-free atomics.</a></p>
 			<details class="code">
 				<summary>
 						<li></li>waveform_manager.cpp<a href="rollback_friendly_audio/waveform_manager.cpp">raw</a>
@@ -348,7 +348,7 @@ struct AudioState {
 			<div class="picture"><img src="rollback_friendly_audio/loop.png"></div>
 
 			<h2>Reverb</h2>
-			<p>After mixing, I apply a <a href="">reverb filter</a> to the OS output buffer for an echoing effect when in game areas like caves. The filter retains its state between uses, so each time it's applied to the audio buffer, reverb carries over from the last. In a more sophisticated game with 3D sound effects, or to prevent rolled-back sounds from continuing to reverberate, the filter could be applied to individual sounds instead of the whole mixed buffer.</p>
+			<p>After mixing, I apply a <a href="https://gist.github.com/rxi/e5488c6660154329ddfc4a7a7d2997f8">reverb filter</a> to the OS output buffer for an echoing effect when in game areas like caves. The filter retains its state between uses, so each time it's applied to the audio buffer, reverb carries over from the last. In a more sophisticated game with 3D sound effects, or to prevent rolled-back sounds from continuing to reverberate, the filter could be applied to individual sounds instead of the whole mixed buffer.</p>
 			<p>Calculating reverb is serial and relatively expensive. Adding it is what prompted me to switch from the method of filling a buffer with more mixed audio than needed to mixing on the audio thread.</p>
 
 			<h2>Device Changes</h2>
