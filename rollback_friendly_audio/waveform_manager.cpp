@@ -28,12 +28,11 @@ struct WaveformManager
 	static const uint32_t maxSlots = 1024;
 	struct Slot {
 		Waveform* waveform;
-		volatile bool remove;
-		volatile uint64_t id;
+		uint64_t id;
 	};
 
-	volatile Slot slots[maxSlots];
-	volatile uint64_t previousWaveformId;
+	Slot slots[maxSlots];
+	uint64_t previousWaveformId;
 };
 
 void destroyWaveform(Waveform* waveform)
@@ -67,15 +66,17 @@ Waveform* getWaveform(WaveformManager* waveformManager, WaveformHandle handle)
 
 void markWaveformForRemoval(WaveformManager* waveformManager, WaveformHandle handle)
 {
-	waveformManager->slots[handle.index].remove = true;
+	InterlockedExchange(&waveformManager->slots[handle.index].id, ULLONG_MAX);
 }
 
 void updateWaveformManager(WaveformManager* waveformManager)
 {
 	for (uint32_t i=0; i<WaveformManager::maxSlots; ++i) {
-		if (waveformManager->slots[i].remove) {
+		if (waveformManager->slots[i].id == ULLONG_MAX) {
+			MemoryBarrier();
 			destroyWaveform(waveformManager->slots[i].waveform);
 			free(waveformManager->slots[i].waveform);
+			waveformManager->slots[i].id = 0;
 			waveformManager->slots[i].waveform = 0;
 		}
 	}
