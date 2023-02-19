@@ -66,7 +66,7 @@ Waveform* getWaveform(WaveformManager* waveformManager, WaveformHandle handle)
 
 void markWaveformForRemoval(WaveformManager* waveformManager, WaveformHandle handle)
 {
-	InterlockedExchange(&waveformManager->slots[handle.index].id, ULLONG_MAX);
+	InterlockedExchange64((int64_t*)&waveformManager->slots[handle.index].id, ULLONG_MAX);
 }
 
 void updateWaveformManager(WaveformManager* waveformManager)
@@ -77,7 +77,7 @@ void updateWaveformManager(WaveformManager* waveformManager)
 			destroyWaveform(waveformManager->slots[i].waveform);
 			free(waveformManager->slots[i].waveform);
 			waveformManager->slots[i].id = 0;
-			waveformManager->slots[i].waveform = 0;
+			InterlockedExchangePointer((void**)&waveformManager->slots[i].waveform, 0);
 		}
 	}
 }
