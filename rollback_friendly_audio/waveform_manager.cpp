@@ -48,10 +48,10 @@ WaveformHandle addWaveform(WaveformManager* waveformManager, Waveform waveform)
 	for (uint32_t i=0; i<WaveformManager::maxSlots; ++i) {
 		void* result = InterlockedCompareExchangePointer((void**)&waveformManager->slots[i].waveform, waveformPtr, 0);
 		if (result == 0) {
+			waveformManager->slots[i].id = InterlockedIncrement(&waveformManager->previousWaveformId);
 			WaveformHandle handle = {0};
-			handle.id = InterlockedIncrement(&waveformManager->previousWaveformId);
+			handle.id = waveformManager->slots[i].id;
 			handle.index = i;
-			waveformManager->slots[i].id = handle.id;
 			return handle;
 		}
 	}
@@ -66,18 +66,19 @@ Waveform* getWaveform(WaveformManager* waveformManager, WaveformHandle handle)
 
 void markWaveformForRemoval(WaveformManager* waveformManager, WaveformHandle handle)
 {
-	InterlockedExchange64((int64_t*)&waveformManager->slots[handle.index].id, ULLONG_MAX);
+	waveformManager->slots[handle.index].id = ULLONG_MAX;
 }
 
 void updateWaveformManager(WaveformManager* waveformManager)
 {
 	for (uint32_t i=0; i<WaveformManager::maxSlots; ++i) {
 		if (waveformManager->slots[i].id == ULLONG_MAX) {
-			MemoryBarrier();
-			destroyWaveform(waveformManager->slots[i].waveform);
+			free(waveformManager->slots[i].waveform->monoSamples);
+			free(waveformManager->slots[i].waveform->stereoSamples);
 			free(waveformManager->slots[i].waveform);
 			waveformManager->slots[i].id = 0;
-			InterlockedExchangePointer((void**)&waveformManager->slots[i].waveform, 0);
+			MemoryBarrier();
+			waveformManager->slots[i].waveform = 0;
 		}
 	}
 }

@@ -5,17 +5,9 @@
   <title>Jacob Bell's Blog</title>
   <link>https://mysteriousj.github.io</link>
   <description>Jacob Bell's Blog</description>
-  <item>
-    <title>A Day in Far Manager</title>
-    <guid>https://mysteriousj.github.io/a_day_in_far.html</guid>
-  </item>
-  <item>
-    <title>Forced Perspective in Magic Coffee Shop</title>
-    <guid>https://mysteriousj.github.io/forced_perspective.html</guid>
-  </item>
-  <item>
-    <title>Wind Effects in Oasis in Curses</title>
-    <guid>https://mysteriousj.github.io/wind_effects.html</guid>
-  </item>
+  <item><title>Rollback Friendly Audio</title><guid>https://mysteriousj.github.io/rollback_friendly_audio.html</guid></item>
+  <item><title>A Day in Far Manager</title><guid>https://mysteriousj.github.io/a_day_in_far.html</guid></item>
+  <item><title>Forced Perspective in Magic Coffee Shop</title><guid>https://mysteriousj.github.io/forced_perspective.html</guid></item>
+  <item><title>Wind Effects in Oasis in Curses</title><guid>https://mysteriousj.github.io/wind_effects.html</guid></item>
 </channel>
 </rss> 
