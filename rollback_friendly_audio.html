@@ -35,22 +35,22 @@ struct GameState {
 			<p>This makes it trivial to copy the game state for every frame. It's also easy with a pure functional style of game update that always returns a new game state instead of changing the old one.</p>
 <pre class="code">frames[n+1] = updateGameState(frames[n]);</pre>
 			<p>Things get complicated quickly when pointer-filled game state is being updated through modifications. Michael Stallone did a great <a href="https://www.youtube.com/watch?v=7jb0FOcImdg">GDC talk on the difficulty of integrating rollback netcode into Netherrealms Studio's object-oriented game engine</a>.</p>
-			<p>Only state that changes depending on inputs needs to be stored for each frame. The game will always catch back up to real-time after a rollback, so things like a waterfall's animation in the background can seamlessly ignore rollback. There probably won't be big enough differences before and after rollback to warrent re-rendering every in-between frame for temporal graphics effects like TAA.</p>
+			<p>Only state that changes depending on inputs needs to be stored for each frame. The game will always catch back up to real-time after a rollback, so things like a waterfall's animation in the background can seamlessly ignore rollback. There probably won't be big enough differences before and after rollback to warrant re-rendering every in-between frame for temporal graphics effects like TAA.</p>
 			<p>Audio is a different challenge, with a dependency on player input and running asynchronously with gameplay. Starting and stopping sounds requires separate timers from the ususal game time step. Games usually handle this just fine, but rollback adds an unusual requirement to an audio system: changing what sounds started playing in the past. Not being able to cancel a sound that a rollback determined should not have happened would be very distracting.</p>
-			<div class="picture"><img src="rollback_friendly_audio/knock_out.png"><p>In early versions of King of Fighters 15, sounds would continue to play after a rollback. Especially noticible if a K.O. was rolled back.</p></div>
+			<div class="picture"><img src="rollback_friendly_audio/knock_out.png"><p>In early versions of King of Fighters 15, sounds would continue to play after a rollback. Especially noticeable if a K.O. was rolled back.</p></div>
 			<p>I felt like most of my game engine components would work well for a game with rollback, but realized I had no idea how to do the audio. I wanted to replace DirectSound and <a href="https://developercommunity.visualstudio.com/t/asan-x64-causes-unhandled-exception-at-0x00007ffac/1365655">its weird bugs</a> anyway, so I began thinking about how to make my ideal audio system.</p>
 			<p>There were four axes along which I wanted to optimize audio for rollback:</p>
 			<ul>
 				<li>Latency: speakers should begin playing audio right after a sound is triggered in game.</li>
 				<li>Performance: avoid doing unnecessary work on the CPU.</li>
-				<li>Rollbackability: it should be possible to go back back in time to a previous frame's audio state and play sounds at the correct time while fast-forwarding.</li>
+				<li>Rollbackability: it should be possible to go back in time to a previous frame's audio state and play sounds at the correct time while fast-forwarding.</li>
 				<li>Simplicity: the code should be clear and easy to understand. Reduce the chance of memory bugs and have no possibility of race conditions.</li>
 			</ul>
 
 			<h2>Playing Audio</h2>
 			<p>To output audio, we ask the operating system for a buffer and fill it with audio samples. There are various levels of abstraction to do this, but the lowest level thing on Windows is WASAPI.</p>
 			<p>To get a buffer, we need a handle to an audio device, such as headphones or a laptop's built-in speakers. To get a device, we need an enumerator. This can list all of the audio devices connected to the system, but WASAPI's has a convenient method to get the user's primary device, or "default endpoint."</p>
-			<p>With a device we can create an audio-client with a specific format, and a render-client that actually gives us the buffer for writting samples. In my game I use floating point for samples in the [0, 1] range, since it offers plenty of overhead when combining sounds and makes the math code simple.</p>
+			<p>With a device we can create an audio-client with a specific format, and a render-client that actually gives us the buffer for writing samples. In my game I use floating point for samples in the [0, 1] range, since it offers plenty of overhead when combining sounds and makes the math code simple.</p>
 			<p>The client's period hints how long we want the buffer to be. This directly impacts latency.</p>
 			<p>With everything set up, we can write audio samples in a loop. First we get the "padding," which indicates how much of the buffer is unplayed. We then get a pointer and write to the played region of the buffer. The following example program shows all these steps and outputs a sine wave.</p>
 			<details class="code">
@@ -210,8 +210,8 @@ void main()
 			<p>One way to approach this problem is to mix sounds into an output buffer on the gameplay thread, avoiding multithreaded access of assets entirely. Then we have the problem mentioned before with inconsistent framerates causing audio glitches. We can mitigate it by writing more audio than necessary per frame. If the gameplay thread mixes 100ms worth of audio instead of 16ms worth, the game could drop to 10fps before audio starts dropping.</p>
 			<p>To prevent this from introducing a lot of latency, there are a few strategies we could use:</p>
 			<div class="picture"><img src="rollback_friendly_audio/double_buffer.png" alt="Double buffer"><p>Mix in the gameplay thread and exchange buffer pointers with the audio thread when finished.</p></div>
-			<div class="picture"><img src="rollback_friendly_audio/ring_buffer.png" alt="Shared ring buffer"><p>A play-head marks the where the audio thread is reading from and a write-head marks where mixed audio can be written to. The write-head stays just in front of the play-head. This is how it's done in DirectSound, a Windows API that wraps WASAPI.</p></div>
-			<p>With either method, the audio thread copies the mixed audio into the OS's output buffer. The downside is we're mixing more audio than we need to. If the game is currently running at 16ms per frame, that's 84ms worth of audio that goes unused. On the other hand, computers are extreamly fast, and the wasted work might make no difference if the game is already well within its CPU budget.</p>
+			<div class="picture"><img src="rollback_friendly_audio/ring_buffer.png" alt="Shared ring buffer"><p>A play-head marks where the audio thread is reading from and a write-head marks where mixed audio can be written to. The write-head stays just in front of the play-head. This is how it's done in DirectSound, a Windows API that wraps WASAPI.</p></div>
+			<p>With either method, the audio thread copies the mixed audio into the OS's output buffer. The downside is we're mixing more audio than we need to. If the game is currently running at 16ms per frame, that's 84ms worth of audio that goes unused. On the other hand, computers are extremly fast, and the wasted work might make no difference if the game is already well within its CPU budget.</p>
 			<p>Since one of my goals was to optimize for CPU usage, I wanted to only mix audio that would actually be played. To do that, I needed to mix on the audio thread.</p>
 
 			<h2>Managing Assets</h2>
@@ -315,7 +315,7 @@ void updateWaveformManager(WaveformManager* waveformManager)
 			<p>This means the list of playing sounds is managed by the audio library without a clear way to roll back to a previous state. When a rollback is needed, the game would have to tell the audio library to stop playing some sounds, roll back, and then start playing sounds again as we go through the frames.</p>
 			<p>How would the audio library know at what point in time a sound started? Rollback cuts off the beginning of animations; it should also cut off the biginning of sounds so nothing is delayed.
 			<br/>How could we identify which sounds started before the rollback so we don't lose those?
-			<br/>How could we make sure sounds are re-played at the exact same point? Even one sample off is noticible.
+			<br/>How could we make sure sounds are re-played at the exact same point? Even one sample off is noticeable.
 			</p>
 			<p>Answering these questions could get complicated, especially if the library is trying to be a blackbox. To optimize for simplicity, what I really wanted was a plain data structure of audio state that could be saved and duplicated.</p>
 <pre class="code">struct Sound {
@@ -330,14 +330,14 @@ struct AudioState {
 			<p>Each frame has its own <span class="code">AudioState</span> that can be trivially copied. <span class="code">startedSampleTime</span> is when the individual sound should start playing. To set this, we need to know where in time the audio thread is currently rendering.</p>
 
 			<h2>Time Sychronization</h2>
-			<p>Gameplay typically measures time in delta times and frames, which tend to be somewhat variable. Audio, hopefully, plays at a consistent rate no matter what else the game is dealing with. Audio time is measured in samples written and is updated every time we aquire the OS's audio buffer. I call this sample-time, and it counts up forever as long as the audio thread is running.</p>
-			<p>Alongside the gamestate frame history, a history of sample-times can track when sounds were started per frame, so we can start playing sounds "in the past" durring rollback.</p>
+			<p>Gameplay typically measures time in delta times and frames, which tend to be somewhat variable. Audio, hopefully, plays at a consistent rate no matter what else the game is dealing with. Audio time is measured in samples written and is updated every time we acquire the OS's audio buffer. I call this sample-time, and it counts up forever as long as the audio thread is running.</p>
+			<p>Alongside the gamestate frame history, a history of sample-times can track when sounds were started per frame, so we can start playing sounds "in the past" during rollback.</p>
 			<div class="picture"><img src="rollback_friendly_audio/sample_times.png"></div>
 
 			<h2>Transfering Data Between Gameplay Thread and Audio Thread</h2>
 			<p>The sounds built up over a game update can be copied to a buffer for the audio thread. When the OS wakes the audio thread, it can update its sound state to match the buffer. We play each sound from its <span class="code">startedSampleTime</span> relative to the audio thread's current sample-time.</p>
 			<div class="picture"><img src="rollback_friendly_audio/transfer.png"></div>
-			<p>In the other direction, the audio thread produces a sample-time that the gameplay thread uses to start sounds. To make these as close as possible, I set a sound's <span class="code">startedSampleTime</span> to zero when it's trigger while updating game state, then at the end of the frame, get the audio thread's sample-time and set all sounds with <span class="code">startedSampleTime == 0</span> to that. I add one period of delay to reduce the chances of cutting off the beginning.</p>
+			<p>In the other direction, the audio thread produces a sample-time that the gameplay thread uses to start sounds. To make these as close as possible, I set a sound's <span class="code">startedSampleTime</span> to zero when it's triggered while updating game state, then at the end of the frame, get the audio thread's sample-time and set all sounds with <span class="code">startedSampleTime == 0</span> to that. I add one period of delay to reduce the chances of cutting off the beginning.</p>
 
 			<h2>Looping</h2>
 			<p>Background music plays in a loop, usually with an intro portion that only plays once. I specify a loop sample index for each song that gets passed to the audio thread. When playing a looping sound past the end of the waveform, it goes back to the loop sample index.</p>
